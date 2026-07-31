@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+    async function checkAuth() {
+        try {
+            const response = await fetch('/api/current-user');
+            if (!response.ok) window.location.href = "login.html";
+        } catch (err) { window.location.href = "login.html"; }
+    }
+    checkAuth();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>Fruit’z | Today's Dispatch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #ffffff; -webkit-tap-highlight-color: transparent; }
+        .date-separator { background-color: #f8fafc; color: #1d4ed8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 20px; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; }
+        .table-row-hover:hover { background-color: #fcfcfc; cursor: pointer; }
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body class="bg-white">
+
+<div class="max-w-6xl mx-auto no-print pb-24">
+    <header class="flex items-center justify-between p-6 md:px-0">
+        <div class="flex items-center gap-4">
+            <button onclick="window.history.back()" class="text-slate-900">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <h1 class="text-lg md:text-2xl font-extrabold text-slate-900">Today's Dispatches</h1>
+        </div>
+        <div class="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl">
+            <span id="orderCount" class="text-blue-600 font-black text-sm">0 Orders Scheduled</span>
+        </div>
+    </header>
+
+    <div id="mobileListView" class="md:hidden divide-y divide-slate-50">
+        </div>
+
+    <div class="hidden md:block overflow-hidden border border-slate-100 rounded-3xl shadow-sm">
+        <table class="w-full text-left">
+            <thead class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                <tr>
+                    <th class="px-8 py-5">Source</th>
+                    <th class="px-8 py-5">Order ID</th>
+                    <th class="px-8 py-5">Customer / Address</th>
+                    <th class="px-8 py-5">Delivery Date</th>
+                    <th class="px-8 py-5">Time Slot</th>
+                    <th class="px-8 py-5 text-right">Total</th>
+                    <th class="px-8 py-5 text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody id="laptopTableBody" class="divide-y divide-slate-50">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-8 py-3 flex justify-between items-center no-print">
+    <div class="flex flex-col items-center gap-1 text-slate-300" onclick="window.location.href='homepage.html'">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        <span class="text-[10px] font-bold uppercase tracking-tighter">Dashboard</span>
+    </div>
+    <div class="flex flex-col items-center gap-1 text-blue-600">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/><path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        <span class="text-[10px] font-bold uppercase tracking-tighter">Orders</span>
+    </div>
+    <div class="flex flex-col items-center gap-1 text-slate-300" onclick="window.location.href='viewbills.html'">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012-2"></path></svg>
+        <span class="text-[10px] font-bold uppercase tracking-tighter">History</span>
+    </div>
+</div>
+
+<script>
+let currentOrders = [];
+const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+// Formats systemic date objects safely back to standard DD-MM-YYYY
+function formatDateDMY(dateObj) {
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    return `${day}-${month}-${year}`;
+}
+
+async function loadOrders() {
+    const mobileCont = document.getElementById('mobileListView');
+    const laptopCont = document.getElementById('laptopTableBody');
+    
+    try {
+        const res = await fetch('/api/bills');
+        const allData = await res.json();
+        
+        // Target localized timestamp components for clean day isolation
+        const todayObj = new Date();
+        const localTodayStr = todayObj.toDateString(); 
+
+        // Filter: only orders specifically scheduled for today
+        currentOrders = allData.filter(o => {
+            if (!o.deliveryDate) return false;
+            const orderDateObj = new Date(o.deliveryDate);
+            return orderDateObj.toDateString() === localTodayStr;
+        });
+
+        // Sort: Chronologically by time slot or backend timestamps if needed
+        currentOrders.sort((a, b) => (a.deliveryTime || '').localeCompare(b.deliveryTime || ''));
+
+        document.getElementById('orderCount').textContent = `${currentOrders.length} Orders Today`;
+        mobileCont.innerHTML = '';
+        laptopCont.innerHTML = '';
+
+        if (currentOrders.length === 0) {
+            const noOrdersMarkup = `
+                <div class="p-12 text-center text-slate-400 font-medium text-sm">
+                    No dispatches scheduled for today.
+                </div>`;
+            mobileCont.innerHTML = noOrdersMarkup;
+            laptopCont.innerHTML = `<tr><td colspan="7">${noOrdersMarkup}</td></tr>`;
+            return;
+        }
+
+        // Set Blue dynamic header color tracking for Today
+        mobileCont.innerHTML += `<div class="date-separator flex items-center justify-between"><span>TODAY'S DISPATCHES</span> <span>${formatDateDMY(todayObj)}</span></div>`;
+
+        currentOrders.forEach(o => {
+            const isZomato = (o.customer || "").toLowerCase().includes("zomato");
+            const iconUrl = isZomato ? "https://upload.wikimedia.org/wikipedia/commons/7/75/Zomato_logo.png" : "https://via.placeholder.com/40";
+            const timeStr = o.deliveryTime || "ASAP";
+            const cleanDateStr = formatDateDMY(new Date(o.deliveryDate));
+
+            // 1. Mobile List Insertion
+            mobileCont.innerHTML += `
+                <div onclick="window.location.href='viewdetailedbill.html?id=${o.id}'" class="flex items-center justify-between p-5 bg-white border-b border-slate-50">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                            <img src="${iconUrl}" class="w-7 ${isZomato ? '' : 'opacity-40'}">
+                        </div>
+                        <div>
+                            <div class="font-extrabold text-slate-900 text-sm leading-tight uppercase">${o.customer}</div>
+                            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">#${o.id} • <span class="text-blue-600">${timeStr}</span></div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-black text-blue-600 text-sm">₹${fmt(o.total)}</div>
+                    </div>
+                </div>`;
+
+            // 2. Laptop Table Insertion
+            laptopCont.innerHTML += `
+                <tr class="table-row-hover group" onclick="window.location.href='viewdetailedbill.html?id=${o.id}'">
+                    <td class="px-8 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">${isZomato ? '🛵 Zomato' : '👤 Direct'}</td>
+                    <td class="px-8 py-5 font-black text-blue-600 text-xs">#${o.id}</td>
+                    <td class="px-8 py-5">
+                        <div class="font-bold text-slate-900 uppercase text-sm">${o.customer}</div>
+                        <div class="text-[10px] text-slate-400 font-medium truncate w-48 italic">"${o.address || 'No Address'}"</div>
+                    </td>
+                    <td class="px-8 py-5 font-bold text-blue-600 text-xs">${cleanDateStr}</td>
+                    <td class="px-8 py-5"><span class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-wider">${timeStr}</span></td>
+                    <td class="px-8 py-5 text-right font-black text-slate-900 text-base">₹${fmt(o.total)}</td>
+                    <td class="px-8 py-5 text-center">
+                        <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+    } catch(e) { console.error(e); }
+}
+
+window.addEventListener('DOMContentLoaded', loadOrders);
+</script>
+</body>
+</html>

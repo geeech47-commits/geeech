@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    async function checkAuth() {
+        try {
+            const response = await fetch('/api/current-user');
+            if (!response.ok) window.location.href = "login.html";
+        } catch (err) {
+            window.location.href = "login.html";
+        }
+    }
+    checkAuth();
+  </script>
+  <meta charset="UTF-8" />
+  <title>Fruit’z | Bill Details</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; overflow-x: hidden; }
+    /* Scrollbar for items list to keep the main page static */
+    .items-scroll::-webkit-scrollbar { width: 4px; }
+    .items-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    @media print { .no-print { display: none !important; } }
+    /* Desktop layout adjustment */
+    @media (min-width: 1024px) {
+        body { overflow: hidden; height: 100vh; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50">
+
+<div class="max-w-[1200px] mx-auto no-print h-full flex flex-col">
+  
+  <header class="flex items-center justify-between p-4 lg:py-4">
+    <div class="flex items-center gap-4">
+      <a href="viewbills.html" class="text-slate-900 bg-white p-2 rounded-full shadow-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+      </a>
+      <h1 class="text-lg font-bold text-slate-900">Bill Details</h1>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="executePrint()" class="hidden lg:flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print
+        </button>
+    </div>
+  </header>
+
+  <div id="billContent" class="px-4 flex-1 lg:grid lg:grid-cols-2 lg:gap-6 lg:overflow-hidden pb-24 lg:pb-6">
+    </div>
+
+  <div class="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 flex gap-3">
+    <button class="flex-1 border border-slate-200 py-4 rounded-2xl font-bold text-slate-700 flex items-center justify-center gap-2 bg-white">
+        View / Share
+    </button>
+   <button onclick="executePrint()" class="flex-1 bg-green-600 py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg shadow-green-200">
+    Print Bill
+</button>
+  </div>
+</div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const billId = urlParams.get('id');
+const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    const time = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return `${d}-${m}-${y} • ${time}`;
+}
+let currentBillData = null; // Global variable to store fetched bill
+
+function formatDateDDMMYYYY(dateInput) {
+    if (!dateInput) return "-";
+    const d = new Date(dateInput);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+}
+
+function formatTime12H(timeStr) {
+    if (!timeStr) return "";
+    if (!timeStr.includes(':')) return timeStr; // Handle already formatted time
+    const [hours, minutes] = timeStr.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
+}
+
+function populatePrintArea(b) {
+    const formatFmt = (n) => Number(n).toFixed(2);
+    document.getElementById('pBillNo').innerText = "BILL: " + b.id;
+    document.getElementById('pDate').innerText = "DATE: " + formatDateDDMMYYYY(b.date);
+    document.getElementById('pCustomer').innerText = "CUSTOMER: " + b.customer;
+    document.getElementById('pPhone').innerText = "PHONE: " + (b.phone || "N/A");
+    document.getElementById('pAddress').innerText = "ADDRESS: " + (b.address || "N/A");
+    document.getElementById('pDeliveryDate').innerText = b.deliveryDate ? "DELIVERY DATE: " + formatDateDDMMYYYY(b.deliveryDate) : "";
+    document.getElementById('pDeliveryTime').innerText = b.deliveryTime ? "DELIVERY TIME: " + formatTime12H(b.deliveryTime) : "";
+    document.getElementById('pSubtotal').innerText = b.subtotal;
+    document.getElementById('pDiscount').innerText = formatFmt(b.discount || 0);
+    document.getElementById('pAdvance').innerText = formatFmt(b.advance || 0);
+    document.getElementById('pTotal').innerText = formatFmt(b.total || 0);
+    document.getElementById('pItems').innerHTML = b.items.map(i => `
+        <div style="display:flex;">
+            <div style="width:50%; text-transform: uppercase;">${i.name}</div>
+            <div style="width:20%; text-align:center;">${i.quantity || i.qty}</div>
+            <div style="width:30%; text-align:right;">₹${formatFmt((i.price) * (i.quantity || i.qty))}</div>
+        </div>`).join('');
+}
+
+function executePrint() {
+    if (!currentBillData) {
+        alert("Bill data not loaded");
+        return;
+    }
+
+    populatePrintArea(currentBillData);
+
+    const printContent = document.getElementById('printArea').innerHTML;
+
+    const win = window.open('', '_blank', 'width=400,height=600');
+
+    win.document.write(`
+        <html>
+        <head>
+            <title>Thermal Print</title>
+            <style>
+                body{
+                    margin:0;
+                    padding:0;
+                    font-family: monospace;
+                    width:58mm;
+                    color:#000;
+                }
+
+                *{
+                    box-sizing:border-box;
+                }
+
+                hr{
+                    border:none;
+                    border-top:1px dashed #000;
+                    margin:6px 0;
+                }
+
+                @media print{
+                    body{
+                        width:58mm;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            ${printContent}
+        </body>
+        </html>
+    `);
+
+    win.document.close();
+
+    win.onload = function () {
+        win.focus();
+
+        setTimeout(() => {
+            win.print();
+            win.close();
+        }, 500);
+    };
+}
+async function fetchBill() {
+    if(!billId) return;
+    try {
+        const res = await fetch(`/api/bills/${billId}`);
+        const b = await res.json();
+        currentBillData = b; // Store for printing
+        
+        const isZomato = (b.customer || "").toLowerCase().includes("zomato");
+        const sourceIcon = isZomato ? "https://upload.wikimedia.org/wikipedia/commons/7/75/Zomato_logo.png" : "https://via.placeholder.com/40";
+
+        document.getElementById('billContent').innerHTML = `
+            <div class="space-y-4 lg:flex lg:flex-col">
+                <div class="bg-white p-4 rounded-[1.5rem] border border-slate-100 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <img src="${sourceIcon}" class="w-10 h-10 rounded-xl object-contain bg-slate-50 p-1">
+                        <div>
+                            <h2 class="font-bold text-slate-900 text-sm">${b.customer || "Walk-in"} Order</h2>
+                            <p class="text-[10px] text-slate-400 font-medium tracking-tight uppercase">#${b.id}</p>
+                        </div>
+                    </div>
+                    <span class="px-2 py-1 rounded-lg bg-green-50 text-green-600 text-[9px] font-black uppercase tracking-wider">Paid</span>
+                </div>
+
+                <div class="bg-white rounded-[1.5rem] border border-slate-100 grid grid-cols-2 divide-x divide-slate-50 shadow-sm">
+                    <div class="p-4">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Total Amount</p>
+                        <p class="text-xl font-black text-green-600">₹${fmt(b.total)}</p>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Date & Time</p>
+                        <p class="text-[11px] font-bold text-slate-900">${formatDate(b.date)}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm flex-1">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Customer Info</h3>
+                    <div class="grid grid-cols-2 gap-y-4">
+                        <div><p class="text-[9px] text-slate-400">Name</p><p class="text-xs font-bold text-slate-900">${b.customer || "Walk-in"}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Order ID</p><p class="text-xs font-bold text-slate-900">${b.id}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Payment</p><p class="text-xs font-bold text-slate-900">${isZomato ? 'Zomato' : 'Cash'}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Status</p><p class="text-xs font-bold text-green-600">Paid ✓</p></div>
+                    </div>
+                    
+                </div>
+            </div>
+
+            <div class="mt-4 lg:mt-0 bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col lg:h-full lg:overflow-hidden">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Bill Items</h3>
+                <div class="items-scroll flex-1 overflow-y-auto pr-2 space-y-4">
+                    ${b.items.map((item, index) => `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-bold text-slate-900">${index + 1}. ${item.name}</p>
+                            <p class="text-[9px] text-slate-400">${item.qty} x ₹${fmt(item.price)}</p>
+                        </div>
+                        <p class="text-xs font-bold text-slate-900">₹${fmt(item.qty * item.price)}</p>
+                    </div>`).join('')}
+                </div>
+                
+                <div class="border-t border-dashed border-slate-100 pt-4 mt-4 space-y-2">
+                    <div class="flex justify-between text-xs font-bold"><span class="text-slate-400">Subtotal</span><span class="text-slate-900">₹${fmt(b.total)}</span></div>
+                    <div class="flex justify-between text-xs font-bold"><span class="text-slate-400">Discount</span><span class="text-red-500">- ₹0.00</span></div>
+                    <div class="flex justify-between pt-2 border-t mt-2"><span class="text-xs font-black text-slate-900 uppercase">Grand Total</span><span class="text-lg font-black text-green-600">₹${fmt(b.total)}</span></div>
+                </div>
+            </div>
+        `;
+    } catch (e) { console.error(e); }
+}
+fetchBill();
+</script>
+<div id="printArea" class="hidden">
+  <div style="width:58mm; padding:6px 6px 10px; font-family:monospace; font-size:12px; color: #000;">
+    <div style="text-align:center; font-weight:900; font-size:24px;">FRUIT’Z</div>
+    <div style="text-align:center; font-size:11px; font-style: italic;">For Your Wellbeing</div>
+    <div style="text-align:center; font-size:11px;">FSSIC NO : 24552365210253</div>
+    <div style="text-align:center; font-size:11px;">Batamaloo, Srinagar</div>
+    <div style="text-align:center; font-size:11px; font-weight: bold;">7006149827, 7889762496</div>
+    <hr style="border:1px solid #000; margin:6px 0;">
+    <div id="pBillNo" style="font-weight: bold;"></div>
+    <div id="pDate"></div>
+    <div id="pCustomer" style="text-transform: uppercase;"></div>
+    <div id="pPhone"></div>
+    <div id="pAddress" style="text-transform: uppercase;"></div>
+    <div id="pDeliveryDate" style="font-weight: bold;"></div>
+    <div id="pDeliveryTime" style="font-weight: bold;"></div>
+    <hr style="border:1px solid #000; margin:8px 0;">
+    <div style="display:flex; font-weight:bold;">
+      <div style="width:50%;">Item</div>
+      <div style="width:20%; text-align:center;">Qty</div>
+      <div style="width:30%; text-align:right;">Price</div>
+    </div>
+    <div id="pItems" style="margin-top:4px;"></div>
+    <hr style="border:1px solid #000; margin:6px 0;">
+    <div style="text-align:right;">Subtotal: ₹<span id="pSubtotal"></span></div>
+    <div style="text-align:right;">Discount: ₹<span id="pDiscount"></span></div>
+    <div style="text-align:right; font-weight:bold;">Advance Paid: ₹<span id="pAdvance"></span></div>
+    <div style="text-align:right; font-weight:900; font-size:14px; margin-top:2px;">
+      Balance: ₹<span id="pTotal"></span>
+    </div>
+    <hr style="border:1px solid #000; margin:6px 0;">
+    <div style="text-align:center; font-size:8px; font-weight:700; margin-bottom: 4px;">Also on swiggy | zomato</div>
+    <div style="text-align:center; font-size:10px; font-style: italic; border-top: 1px dotted #000; padding-top: 4px;">powdered by Fruit'z billing software</div>
+  </div>
+</div>
+</body>
+</html>

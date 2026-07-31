@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+    async function checkAuth() {
+        try {
+            const response = await fetch('/api/current-user');
+            if (!response.ok) {
+                window.location.href = "login.html";
+            }
+        } catch (err) {
+            window.location.href = "login.html";
+        }
+    }
+    checkAuth();
+</script>
+  <meta charset="UTF-8" />
+  <title>Fruit’z | Premium Billing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    .receipt-dashed { border-top: 2px dashed #e2e8f0; }
+    @media print { .no-print { display: none !important; } }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    
+    .action-dropdown { position: relative; }
+    .dropdown-menu { 
+        display: none; 
+        position: absolute; 
+        right: 0; 
+        top: 100%; 
+        z-index: 1000; 
+        min-width: 140px; 
+        background: white;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+    }
+    .dropdown-menu.show { display: block; }
+     .logo-container { 
+      margin-bottom:14px; 
+      display: flex;
+      justify-content: center;
+    }
+    
+    .logo-img {
+      max-width: 100%; 
+      width:100px;    
+      height: auto;
+    }
+
+    @media (max-width: 1024px) {
+        #transactionsTable thead { display: none; }
+        #savedBillsList { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; padding: 1rem 0; }
+        #savedBillsList tr { display: block; background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1rem; margin-bottom: 0.5rem; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        #savedBillsList td { display: block; text-align: left !important; padding: 0.25rem 0; border: none; }
+        #savedBillsList td:first-child { font-size: 1.1rem; border-bottom: 1px solid #f1f5f9; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
+        #savedBillsList td:last-child { position: absolute; top: 1rem; right: 1rem; }
+        #savedBillsList td::before { content: attr(data-label); font-weight: 700; text-transform: uppercase; font-size: 0.65rem; color: #94a3b8; display: block; margin-bottom: 2px; }
+        #savedBillsList td:last-child::before { display: none; }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800">
+
+<div id="toastNotification" class="fixed top-24 right-4 lg:right-8 z-[200] hidden transform translate-y-2 opacity-0 transition-all duration-300 ease-out">
+    <div class="bg-slate-900 text-white px-6 py-3.5 rounded-xl shadow-2xl border border-slate-800 flex items-center gap-3">
+        <div class="bg-emerald-500 text-slate-950 p-1.5 rounded-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            </svg>
+        </div>
+        <div class="text-center">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-0.5">System Status</p>
+            <p class="text-xs font-bold uppercase tracking-wide text-emerald-400">Bill Saved Successfully!</p>
+        </div>
+    </div>
+</div>
+
+<header class="bg-white border-b px-4 lg:px-8 py-4 sticky top-0 z-50">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+        <div class="logo-container">
+      <img src="logo.jpeg" alt="Fruit'z Logo" class="logo-img">
+    </div>
+            <span class="text-xl sm:text-2xl tracking-tighter" style="font-family: 'Great Vibes', cursive; color: #4E2A1E;"> 
+</span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="homepage.html" class="notification-pill flex items-center gap-2 px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-200 transition-all text-[9px] font-black uppercase tracking-widest">
+                Home
+            </a>
+            
+            <a href="todaysorders.html" class="notification-pill relative flex items-center gap-2 px-3 py-2 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 hover:bg-rose-100 transition-all text-[9px] font-black uppercase tracking-widest">
+                <span class="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                </span>
+                Today
+            </a>
+            
+            <a href="viewbills.html" class="notification-pill flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-all text-[9px] font-black uppercase tracking-widest">
+                View Bills
+            </a>
+        </div>
+    </div>
+</header>
+  
+
+  <main class="max-w-[1600px] mx-auto p-4 lg:p-8 space-y-6 lg:space-y-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+        <div class="lg:col-span-7 xl:col-span-8 space-y-6">
+           <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6">
+                <h3 class="text-sm font-bold text-indigo-600 uppercase mb-4">Customer & Delivery Details</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+                    
+                    <!-- Order Type Field -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Order Type</label>
+                        <select id="orderType" onchange="handleOrderTypeChange()" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 uppercase font-bold text-slate-700">
+                            <option value="dine-in">Dine-In</option>
+                            <option value="takeaway">Takeaway</option>
+                            <option value="deliver">Delivery</option>
+                        </select>
+                    </div>
+
+                    <!-- Phone Number -->
+                    <div class="flex flex-col">
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Phone Number</label>
+                        <input id="customerPhone" type="tel" placeholder="7006xxxxxx" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+                        
+                        <div id="cancellationAlertBanner" class="mt-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-2 hidden flex items-center gap-2 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <p class="text-[10px] font-black uppercase tracking-wider text-rose-700 leading-tight">
+                                Alert: Last order was cancelled!
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Customer Name -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Customer Name</label>
+                        <input id="customerName" type="text" placeholder="WALK-IN" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 uppercase">
+                    </div>
+                    
+                    <!-- Bill No. -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Bill No.</label>
+                        <input id="billNumber" type="text" readonly class="w-full bg-slate-100 border-none rounded-xl px-4 py-2 text-slate-500 font-mono">
+                    </div>
+
+                    <!-- Delivery Conditional Fields Container -->
+                    <div id="deliveryFieldsContainer" class="contents hidden">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Delivery Date</label>
+                            <input id="deliveryDate" type="date" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Delivery Time</label>
+                            <input id="deliveryTime" type="time" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-3">
+                            <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Delivery Address</label>
+                            <input id="customerAddress" type="text" placeholder="ENTER FULL ADDRESS" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 uppercase">
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+           <div id="pastOrdersContainer" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6 hidden">
+                <h3 class="text-sm font-bold text-amber-600 uppercase mb-3 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
+                    Customer Purchase History
+                </h3>
+
+                <div class="hidden md:block overflow-x-auto custom-scrollbar max-h-[220px]">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="text-slate-400 font-bold uppercase border-b bg-slate-50">
+                                <th class="p-3">Bill ID</th>
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Items Order Summary</th>
+                                <th class="p-3 text-right">Paid Amount</th>
+                                <th class="p-3 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pastOrdersRows" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+
+                <div id="pastOrdersCards" class="block md:hidden space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <h2 class="text-lg font-bold">Quick Menu</h2>
+                    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                            <input id="deliveryChargeAmount" type="number" placeholder="Fee" class="w-14 bg-white border-none rounded-md px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500" value="50">
+                            <button onclick="addDeliveryCharge()" class="bg-slate-800 text-white px-2 py-1 rounded-md text-[10px] font-bold hover:bg-black">Add Delivery</button>
+                        </div>
+                        <select id="selectItem" class="flex-1 sm:flex-none bg-slate-50 border-none rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Select Item...</option>
+                        </select>
+                        <input id="itemQuantity" type="number" min="1" value="1" class="w-14 bg-slate-50 border-none rounded-lg px-2 py-2 text-center focus:ring-2 focus:ring-indigo-500">
+                        <button onclick="addItemToBill()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-md">Add</button>
+                    </div>
+                </div>
+                <div id="menuItems" class="flex gap-4 max-h-[400px] lg:max-h-[300px] overflow-hidden pr-2"></div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-5 xl:col-span-4">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden sticky top-24">
+                <div class="bg-slate-900 text-white p-4 lg:p-6 text-center">
+                    <h2 class="font-bold tracking-widest text-xl uppercase">Receipt</h2>
+                </div>
+                <div class="p-4 lg:p-6">
+                    <div id="billItemsContainer" class="space-y-4 min-h-[100px] max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <p class="text-center text-slate-400 py-10 uppercase font-bold">Your cart is empty</p>
+                    </div>
+                    <div class="receipt-dashed mt-6 pt-6 space-y-3">
+                        <div class="flex justify-between text-slate-600 text-sm">
+                            <span>Subtotal</span>
+                            <span class="font-medium">₹<span id="subtotal">0.00</span></span>
+                        </div>
+                        <div class="flex justify-between items-center text-slate-600 text-sm">
+                            <span>Discount (₹)</span>
+                            <input id="discount" type="number" value="0" oninput="calcTotals()" class="w-20 text-right bg-slate-50 border-none rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500 font-bold">
+                        </div>
+                        <div class="flex justify-between items-center text-indigo-600 font-semibold text-sm">
+                            <span>Advance Paid (₹)</span>
+                            <input id="advance" type="number" value="0" oninput="calcTotals()" class="w-20 text-right bg-indigo-50 border-none rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500 font-bold">
+                        </div>
+                        <div class="flex justify-between text-slate-900 text-xl font-bold pt-3 border-t">
+                            <span id="balanceLabel" class="text-base uppercase">Balance Due</span>
+                            <span class="text-indigo-600">₹<span id="total">0.00</span></span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mt-6">
+                        <button onclick="clearBill()" class="py-3 px-2 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 text-xs uppercase">Clear</button>
+                        <button onclick="saveBill()" class="py-3 px-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-lg text-xs uppercase">Save Bill</button>
+                        <button onclick="printThermal()" class="py-3 px-4 col-span-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg uppercase text-xs">Print Thermal Receipt</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6">
+        <h2 class="text-xl font-bold text-slate-900 mb-4">Recent Transactions</h2>
+        <div class="overflow-x-auto" style="min-height: 200px;">
+            <table id="transactionsTable" class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-slate-400 text-xs uppercase font-bold border-b">
+                        <th class="px-4 py-4">Bill No</th>
+                        <th class="px-4 py-4">Customer</th>
+                        <th class="px-4 py-4">Delivery</th>
+                        <th class="px-4 py-4 text-right">Total</th>
+                        <th class="px-4 py-4 text-right">Advance</th>
+                        <th class="px-4 py-4 text-right">Balance</th>
+                        <th class="px-4 py-4 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="savedBillsList" class="text-sm divide-y divide-slate-50"></tbody>
+            </table>
+        </div>
+        <div id="viewMoreContainer" class="text-center mt-4"></div>
+    </section>
+  </main>
+
+  <div id="tagCustomModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+          <div class="bg-amber-600 px-6 py-4 flex justify-between items-center text-white">
+              <h3 class="font-bold uppercase tracking-widest text-sm">Tag Options: <span id="modal-tag-bill-id-title"></span></h3>
+              <button onclick="closeModal('tagCustomModal')" class="hover:text-white/70 text-2xl">&times;</button>
+          </div>
+          <div class="p-6 space-y-4">
+              <input type="hidden" id="modal-tag-bill-id">
+              <input type="hidden" id="modal-tag-bill-date">
+
+              <div>
+                  <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-wider">Packaging / Ready Date</label>
+                  <input id="modal-tag-pack-date" type="date" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 font-bold">
+              </div>
+              <div>
+                  <label class="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-wider">Packaging / Ready Time</label>
+                  <input id="modal-tag-time" type="time" class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-amber-500 font-bold">
+              </div>
+          </div>
+          <div class="p-4 bg-slate-50 border-t flex justify-end gap-2">
+              <button onclick="closeModal('tagCustomModal')" class="px-4 py-2 text-slate-500 font-bold text-xs uppercase">Cancel</button>
+              <button onclick="executeKnotTagPrint()" class="px-6 py-2 bg-amber-600 text-white rounded-lg font-bold shadow-md text-xs uppercase hover:bg-amber-700">Print Tag Now</button>
+          </div>
+      </div>
+  </div>
+
+  <div id="infoModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+          <div class="bg-slate-800 px-6 py-4 flex justify-between items-center text-white">
+              <h3 class="font-bold uppercase tracking-widest text-sm">Bill Details</h3>
+              <button onclick="closeModal('infoModal')" class="hover:text-white/70 text-2xl">&times;</button>
+          </div>
+          <div id="modalBody" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar"></div>
+          <div class="p-4 bg-slate-50 border-t flex justify-end">
+              <button onclick="closeModal('infoModal')" class="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase">Close</button>
+          </div>
+      </div>
+  </div>
+
+  <div id="editModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+        <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white">
+            <h3 class="font-bold uppercase tracking-widest text-sm">Update Transaction</h3>
+            <button onclick="closeModal('editModal')" class="hover:text-white/70 text-2xl">&times;</button>
+        </div>
+        <div id="editModalBody" class="p-6 space-y-4"></div>
+        <div id="editModalFooter" class="p-4 bg-slate-50 border-t flex flex-wrap justify-end gap-2">
+            <button onclick="closeModal('editModal')" class="px-4 py-2 text-slate-500 font-bold text-xs uppercase">Cancel</button>
+            <button id="markPaidBtn" class="px-4 py-2 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg font-bold text-xs uppercase">Mark All Paid</button>
+            <button id="saveEditBtn" class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold shadow-md text-xs uppercase">Update Record</button>
+        </div>
+    </div>
+  </div>
+
+  <div id="printArea" class="hidden">
+    <div style="width:58mm; padding:6px 6px 10px; font-family:monospace; font-size:12px; color: #000;">
+      <div style="text-align:center; font-weight:900; font-size:24px;">FRUIT’Z</div>
+      <div style="text-align:center; font-size:11px; font-style: italic;">For Your Wellbeing</div>
+      <div style="text-align:center; font-size:11px;">FSSIC NO : 24552365210253</div>
+      <div style="text-align:center; font-size:11px;">Batamaloo, Srinagar</div>
+      <div style="text-align:center; font-size:11px; font-weight: bold;">7006149827, 7889762496</div>
+      <hr style="border:1px solid #000; margin:6px 0;">
+      <div id="pBillNo" style="font-weight: bold;"></div>
+      <div id="pDate"></div>
+      <div id="pCustomer" style="text-transform: uppercase;"></div>
+      <div id="pPhone"></div>
+      <div id="pAddress" style="text-transform: uppercase;"></div>
+      <div id="pDeliveryDate" style="font-weight: bold;"></div>
+      <div id="pDeliveryTime" style="font-weight: bold;"></div>
+      <hr style="border:1px solid #000; margin:8px 0;">
+      <div style="display:flex; font-weight:bold;">
+        <div style="width:50%;">Item</div>
+        <div style="width:20%; text-align:center;">Qty</div>
+        <div style="width:30%; text-align:right;">Price</div>
+      </div>
+      <div id="pItems" style="margin-top:4px;"></div>
+      <hr style="border:1px solid #000; margin:6px 0;">
+      <div style="text-align:right;">Subtotal: ₹<span id="pSubtotal"></span></div>
+      <div style="text-align:right;">Discount: ₹<span id="pDiscount"></span></div>
+      <div style="text-align:right; font-weight:bold;">Advance Paid: ₹<span id="pAdvance"></span></div>
+      <div style="text-align:right; font-weight:900; font-size:14px; margin-top:2px;">
+        Balance: ₹<span id="pTotal"></span>
+      </div>
+      <hr style="border:1px solid #000; margin:6px 0;">
+      <div style="text-align:center; font-size:8px; font-weight:700; margin-bottom: 4px;">Also on swiggy | zomato</div>
+      <div style="text-align:center; font-size:10px; font-style: italic; border-top: 1px dotted #000; padding-top: 4px;">powdered by Fruit'z billing software</div>
+    </div>
+  </div>
+  <div id="knot-tag-section" style="display: none;font-family:monospace; font-size:12px;">
+    <div class="knot-tag-print" style="font-family:monospace;">
+      <div style="text-align:center; font-weight:900; font-size:24px;">FRUIT’Z</div>
+      <div style="text-align:center; font-size:11px; font-style: italic;">For Your Wellbeing</div>
+<div class="divider"></div>
+        <div><span class="bold">BILL ID:</span> <span id="tag-bill-id"></span></div>
+        <div><span class="bold">BILL DATE:</span> <span id="tag-bill-date"></span></div>
+        <div><span class="bold">PACKED ON:</span> <span id="tag-pack-date"></span></div>
+        <div><span class="bold">TIME:</span> <span id="tag-time"></span></div>
+        
+      <hr style="border:1px solid #000; margin:6px 0;">
+        <div class="text-center bold" style="font-size:22px">INSTRUCTION SLIP</div>
+        <div class="text-center bold" style="font-size:11px">DO NOT REMOVE THIS SLIP</div>
+
+        <div class="alert-box" style="padding: 6px 4px 6px 12px;">
+            <ul style="list-style-type: dashed; margin: 0; padding-left: 10px; font-weight:600; font-size:11px; line-height: 1.4;">
+                <li style="margin-bottom: 3px;">IMMEDIATELY REMOVE ALL THE FRUITS FROM THE BASKET.</li>
+                <li style="margin-bottom: 3px;">REFRIGERATE THE FRUITS AS SOON AS POSSIBLE.</li>
+            </ul>
+        </div>
+        
+        <div class="alert-box" style="font-weight: 700; font-size: 11px; text-align: center; line-height: 1.4;">
+            <div style="text-transform: uppercase;">Best to use within 24hrs of packaging time.</div>
+            <div style="margin-top: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; border-top: 1px dashed #000; padding-top: 4px;">
+                Any queries will be accepted within the 24hrs of timeframe.
+            </div>
+        </div>
+        
+        <div class="divider"></div>
+        <div class="text-center bold" style="font-size: 10px; margin-top: 8px;">*** THANK YOU ***</div>
+    </div>
+</div>
+<style>
+@media print {
+    body.printing-knot-tag > :not(#knot-tag-section) {
+        display: none !important;
+    }
+    
+    body.printing-knot-tag #knot-tag-section {
+        display: block !important;
+    }
+
+    .knot-tag-print {
+        width: 58mm;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        color: #000;
+        background: #fff;
+        padding: 5px;
+        margin: 0;
+        height: auto;
+    }
+    .knot-tag-print .text-center { text-align: center; }
+    .knot-tag-print .bold { font-weight: bold; }
+    .knot-tag-print .divider { border-top: 1px dashed #000; margin: 5px 0; }
+    .knot-tag-print .alert-box { border: 1px solid #000; padding: 6px; margin-top: 5px; font-size: 11px; }
+}
+</style>
+  <script>
+    const successSound = new Audio('success.mp3'); 
+
+    successSound.addEventListener('error', (e) => {
+        console.error("Audio file failed to load. Check path:", e);
+    });
+
+    let menu = []; 
+    let billItems = [];
+    let currentSavedBills = [];
+    let selectedCategory = '';
+
+    function handleOrderTypeChange() {
+        const orderType = document.getElementById('orderType').value;
+        const deliveryContainer = document.getElementById('deliveryFieldsContainer');
+
+        if (orderType === 'deliver') {
+            deliveryContainer.classList.remove('hidden');
+        } else {
+            deliveryContainer.classList.add('hidden');
+            // Clear conditional delivery inputs when hidden so they aren't accidentally saved
+            document.getElementById('deliveryDate').value = "";
+            document.getElementById('deliveryTime').value = "";
+            document.getElementById('customerAddress').value = "";
+        }
+    }
+
+    function fmt(n) { return Number(n).toFixed(2); }
+
+    function formatDateDDMMYYYY(dateInput) {
+        if (!dateInput) return "-";
+        const d = new Date(dateInput);
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        return `${dd}-${mm}-${yyyy}`;
+    }
+
+    function formatTime12H(timeStr) {
+        if (!timeStr) return "";
+        const [hours, minutes] = timeStr.split(':');
+        const h = parseInt(hours);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12}:${minutes} ${ampm}`;
+    }
+
+function printKnotTag(billId, billDate, defaultPackDate, defaultTime) {
+    document.getElementById('modal-tag-bill-id-title').innerText = billId;
+    document.getElementById('modal-tag-bill-id').value = billId;
+    document.getElementById('modal-tag-bill-date').value = billDate;
+
+    let inputDate = new Date().toISOString().split('T')[0]; 
+    if (defaultPackDate && defaultPackDate.includes('-')) {
+        const parts = defaultPackDate.split('-');
+        if(parts[2] && parts[2].length === 4) inputDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    document.getElementById('modal-tag-pack-date').value = inputDate;
+
+    let inputTime = "22:00"; 
+    if (defaultTime && defaultTime.includes(' ')) {
+        const [timePart, ampm] = defaultTime.split(' ');
+        let [hrs, mins] = timePart.split(':');
+        let hours = parseInt(hrs);
+        if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+        if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+        inputTime = `${String(hours).padStart(2, '0')}:${mins}`;
+    } else if (defaultTime && defaultTime.includes(':')) {
+        inputTime = defaultTime;
+    }
+    document.getElementById('modal-tag-time').value = inputTime;
+
+    document.getElementById('tagCustomModal').classList.remove('hidden');
+}
+
+async function executeKnotTagPrint() {
+    const billId = document.getElementById('modal-tag-bill-id').value;
+    const billDate = document.getElementById('modal-tag-bill-date').value;
+    const rawDate = document.getElementById('modal-tag-pack-date').value;
+    const rawTime = document.getElementById('modal-tag-time').value;
+
+    try {
+        const response = await fetch(`/api/bills/${billId}/packaging`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ packagedOn: rawDate, packagedTime: rawTime })
+        });
+        if (response.ok) {
+            if (typeof loadSavedBills === 'function') loadSavedBills();
+        }
+    } catch (err) {
+        console.error("Database connection error:", err);
+    }
+
+    let formattedPackDate = "-";
+    if (rawDate) {
+        const [y, m, d] = rawDate.split('-');
+        formattedPackDate = `${d}-${m}-${y}`;
+    }
+    let formattedTime = "N/A";
+    if (rawTime) {
+        let [hours, minutes] = rawTime.split(':');
+        let h = parseInt(hours);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        formattedTime = `${h}:${minutes} ${ampm}`;
+    }
+
+    closeModal('tagCustomModal');
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert("Please allow pop-ups for Fruit'z POS to complete the tag print output.");
+            return;
+        }
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>FRUITZ_STICKY_TAG</title>
+                <style>
+                    body { font-family: monospace; width: 58mm; padding: 5px; margin: 0 auto; color: #000; background: #fff; font-size: 12px; }
+                    .text-center { text-align: center; }
+                    .bold { font-weight: bold; }
+                    .divider { border-top: 1px dashed #000; margin: 5px 0; }
+                    .alert-box { border: 1px solid #000; padding: 6px; margin-top: 5px; font-size: 11px; }
+                </style>
+            </head>
+            <body>
+                <div class="text-center bold" style="font-size:24px;">FRUIT’Z</div>
+                <div class="text-center" style="font-size:11px; font-style: italic;">For Your Wellbeing</div>
+                <div class="divider"></div>
+                <div><span class="bold">BILL ID:</span> ${billId.toUpperCase()}</div>
+                <div><span class="bold">BILL DATE:</span> ${billDate}</div>
+                <div><span class="bold">PACKED ON:</span> ${formattedPackDate}</div>
+                <div><span class="bold">TIME:</span> ${formattedTime.toUpperCase()}</div>
+                <div class="divider"></div>
+                <div class="text-center bold" style="font-size:20px">INSTRUCTION SLIP</div>
+                <div class="text-center bold" style="font-size:11px">DO NOT REMOVE THIS SLIP</div>
+                <div class="alert-box">
+                    <ul style="margin: 0; padding-left: 12px; font-weight:600; font-size:11px; line-height: 1.4;">
+                        <li style="margin-bottom: 3px;">IMMEDIATELY REMOVE ALL THE FRUITS FROM THE BASKET.</li>
+                        <li style="margin-bottom: 3px;">REFRIGERATE THE FRUITS AS SOON AS POSSIBLE.</li>
+                    </ul>
+                </div>
+                <div class="alert-box" style="font-weight: 700; text-align: center; line-height: 1.4;">
+                    <div>Best to use within 24hrs of packaging time.</div>
+                </div>
+                <div class="divider"></div>
+                <div class="text-center bold" style="font-size: 10px; margin-top: 8px;">*** THANK YOU ***</div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 300);
+                    };
+                <\/script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    } else {
+        document.getElementById('tag-bill-id').innerText = billId.toUpperCase();
+        document.getElementById('tag-bill-date').innerText = billDate;
+        document.getElementById('tag-pack-date').innerText = formattedPackDate;
+        document.getElementById('tag-time').innerText = formattedTime.toUpperCase();
+
+        document.body.classList.add('printing-knot-tag');
+        window.print();
+        document.body.classList.remove('printing-knot-tag');
+    }
+}
+
+    function renderMenu() {
+        const box = document.getElementById('menuItems');
+        
+        const categories = [...new Set(menu.map(m => m.category || 'General'))];
+        if (!selectedCategory && categories.length > 0) {
+            selectedCategory = categories[0];
+        }
+
+        box.innerHTML = `
+            <div id="categoryStack" class="w-1/4 flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-1 border-r border-slate-100"></div>
+            <div id="itemsGrid" class="w-3/4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2 content-start overflow-y-auto custom-scrollbar pl-1"></div>
+        `;
+
+        const categoryStack = document.getElementById('categoryStack');
+        const itemsGrid = document.getElementById('itemsGrid');
+
+        categoryStack.innerHTML = categories.map(cat => {
+            const isActive = selectedCategory === cat;
+            const activeClass = isActive ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200';
+            return `<button onclick="selectCategory('${cat}')" class="w-full text-left p-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all truncate ${activeClass}">${cat}</button>`;
+        }).join('');
+
+        const colors = ['bg-purple-700 hover:bg-purple-800', 'bg-blue-600 hover:bg-blue-800', 'bg-green-600 hover:bg-green-800', 'bg-orange-400 hover:bg-orange-500', 'bg-yellow-400', 'bg-red-500 hover:bg-red-800', 'bg-pink-500 hover:bg-pink-800'];
+        
+        itemsGrid.innerHTML = menu.map((m, i) => {
+            const itemCat = m.category || 'General';
+            if (itemCat !== selectedCategory) return '';
+            
+            const colorClass = colors[i % colors.length];
+            const textColor = (colorClass.includes('yellow')) ? 'text-slate-900' : 'text-white';
+            return `<div onclick="quickAdd(${i})" class="${colorClass} rounded-xl p-2.5 cursor-pointer transition-all shadow-md transform active:scale-95"><p class="font-bold ${textColor} text-[11px] uppercase tracking-wide truncate">${m.name}</p><p class="text-[9px] ${textColor} opacity-90 font-black">₹${parseFloat(m.price).toFixed(2)}</p></div>`;
+        }).filter(Boolean).join('');
+
+        document.getElementById('selectItem').innerHTML = `<option value="">Select...</option>` + menu.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');
+    }
+
+    function selectCategory(cat) {
+        selectedCategory = cat;
+        renderMenu();
+    }
+
+    function quickAdd(idx) {
+        const item = menu[idx];
+        const existing = billItems.find(b => b.name === item.name);
+        if (existing) { existing.quantity += 1; }
+        else { billItems.push({ ...item, quantity: 1 }); }
+        renderBillItems();
+    }
+
+    function addDeliveryCharge() {
+        const amount = parseFloat(document.getElementById('deliveryChargeAmount').value) || 0;
+        if (amount > 0) {
+            const existing = billItems.find(b => b.name === "DELIVERY CHARGE");
+            if (existing) existing.price = amount;
+            else billItems.push({ name: "DELIVERY CHARGE", price: amount, quantity: 1 });
+            renderBillItems();
+        }
+    }
+
+    function addItemToBill() {
+        const idx = document.getElementById('selectItem').value;
+        const qty = parseInt(document.getElementById('itemQuantity').value);
+        if (idx !== "" && qty > 0) {
+            const item = menu[idx];
+            const existing = billItems.find(b => b.name === item.name);
+            if (existing) existing.quantity += qty;
+            else billItems.push({ ...item, quantity: qty });
+            renderBillItems();
+            document.getElementById('itemQuantity').value = 1;
+        }
+    }
+
+    function renderBillItems() {
+        const container = document.getElementById('billItemsContainer');
+        if (billItems.length === 0) {
+            container.innerHTML = `<p class="text-center text-slate-400 py-10 uppercase font-bold">Your cart is empty</p>`;
+            calcTotals(); return;
+        }
+        container.innerHTML = billItems.map((it, i) => `<div class="flex justify-between items-center border-b border-slate-50 pb-2 text-sm"><div class="flex-1"><p class="font-medium uppercase truncate max-w-[150px]">${it.name}</p><p class="text-[10px] text-slate-400">${it.quantity} x ₹${it.price}</p></div><div class="text-right"><p class="font-bold">₹${fmt(it.price * it.quantity)}</p><button onclick="removeBillItem(${i})" class="text-[10px] text-rose-500 font-bold uppercase">REMOVE</button></div></div>`).join('');
+        calcTotals();
+    }
+
+    function removeBillItem(idx) { billItems.splice(idx, 1); renderBillItems(); }
+
+    function calcTotals() {
+        const sub = billItems.reduce((s, i) => s + (i.price * i.quantity), 0);
+        const disc = parseFloat(document.getElementById('discount').value) || 0;
+        const adv = parseFloat(document.getElementById('advance').value) || 0;
+        const afterDisc = Math.max(0, sub - disc);
+        const balance = afterDisc - adv;
+        document.getElementById('subtotal').textContent = fmt(sub);
+        document.getElementById('total').textContent = fmt(balance);
+        const totalEl = document.getElementById('total');
+        if (balance > 0) totalEl.className = "text-rose-600";
+        else if (balance < 0) totalEl.className = "text-indigo-600";
+        else totalEl.className = "text-emerald-600";
+    }
+
+    async function fetchNewBillId() {
+        try {
+            const response = await fetch('/api/next-bill-id');
+            if (!response.ok) throw new Error('Server returned an error');
+            const data = await response.json();
+            document.getElementById('billNumber').value = data.billId;
+        } catch (err) {
+            console.error("Failed to fetch bill ID:", err);
+            document.getElementById('billNumber').value = "ERROR"; 
+        }
+    }
+
+    function getCurrentBillObj() {
+        return {
+            id: document.getElementById('billNumber').value,
+            date: new Date().toISOString(),
+            orderType: document.getElementById('orderType').value,
+            customer: document.getElementById('customerName').value.toUpperCase() || "WALK-IN",
+            phone: document.getElementById('customerPhone').value,
+            address: document.getElementById('orderType').value === 'deliver' ? document.getElementById('customerAddress').value.toUpperCase() : "",
+            deliveryDate: document.getElementById('orderType').value === 'deliver' ? document.getElementById('deliveryDate').value : "",
+            deliveryTime: document.getElementById('orderType').value === 'deliver' ? document.getElementById('deliveryTime').value : "",
+            items: JSON.parse(JSON.stringify(billItems)),
+            subtotal: document.getElementById('subtotal').textContent,
+            orderSource: 'offline',
+            discount: document.getElementById('discount').value || 0,
+            advance: document.getElementById('advance').value || 0,
+            total: document.getElementById('total').textContent
+        };
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'F1') {
+            event.preventDefault(); 
+            clearBill();
+        }
+        if (event.key === 'F6') {
+            event.preventDefault(); 
+            saveBill();
+        }
+    });
+
+    async function saveBill() {
+        if(billItems.length === 0) return alert("Empty Bill");
+        const bill = getCurrentBillObj();
+        try {
+            const response = await fetch('/api/bills', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bill)
+            });
+            
+            if (response.ok) {
+                successSound.currentTime = 0; 
+                successSound.play().catch(e => console.error("Audio playback error:", e));
+                
+                await clearBill(); 
+                await loadSavedBills();
+
+                const toast = document.getElementById('toastNotification');
+                toast.classList.remove('hidden');
+                
+                void toast.offsetWidth; 
+                
+                toast.classList.remove('translate-y-2', 'opacity-0');
+                toast.classList.add('translate-y-0', 'opacity-100');
+
+                setTimeout(() => {
+                    toast.classList.remove('translate-y-0', 'opacity-100');
+                    toast.classList.add('translate-y-2', 'opacity-0');
+                    setTimeout(() => {
+                        toast.classList.add('hidden');
+                    }, 300);
+                }, 3000);
+
+            } else {
+                alert("Server rejected the bill payload. Check server logs.");
+            }
+        } catch (err) { alert("Server is not running!"); }
+    }
+
+    function toggleDropdown(event, index) {
+        event.stopPropagation();
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+            if(menu.id !== `dropdown-${index}`) menu.classList.remove('show');
+        });
+        const dropdown = document.getElementById(`dropdown-${index}`);
+        closeAllDropdowns(); 
+        dropdown.classList.toggle('show');
+    }
+
+    window.onclick = function(event) {
+        if (!event.target.closest('.action-dropdown')) {
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+        }
+    }
+
+    function closeAllDropdowns() {
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    }
+
+   async function loadSavedBills() {
+        try {
+            const response = await fetch('/api/bills');
+            currentSavedBills = await response.json();
+            const cont = document.getElementById('savedBillsList');
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+
+            cont.innerHTML = currentSavedBills.slice(0, 7).map((b, i) => {
+                const isOnline = b.orderSource === 'ONLINE';
+                const displayBalance = isOnline ? 0 : parseFloat(b.total || 0);
+                
+                const balanceColor = displayBalance > 0 ? 'text-blue-600' : 'text-emerald-600';
+                const balanceText = displayBalance > 0 ? `₹${fmt(displayBalance)}` : "PAID";
+                
+                let dateColor = "text-slate-500";
+                let formattedDelivery = "-";
+                const isCancelled = b.orderStatus === 'cancelled';
+
+                if (isCancelled) {
+                    dateColor = "text-rose-600 font-black";
+                    formattedDelivery = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] tracking-wide uppercase">Cancelled</span>`;
+                } else if (b.deliveryDate) {
+                    const dDate = new Date(b.deliveryDate); dDate.setHours(0,0,0,0);
+                    formattedDelivery = formatDateDDMMYYYY(b.deliveryDate);
+                    if (b.deliveryTime) formattedDelivery += " (" + formatTime12H(b.deliveryTime) + ")";
+                    if (dDate.getTime() === today.getTime()) dateColor = "text-blue-600";
+                    else if (dDate.getTime() > today.getTime()) dateColor = "text-rose-600";
+                }
+
+                const displayRowText = isCancelled ? 'line-through text-slate-400 opacity-75' : '';
+
+                return `<tr class="hover:bg-slate-50 border-b ${displayRowText}">
+                    <td data-label="Bill ID" class="px-4 py-4 font-mono font-bold text-indigo-600">${b.id}</td>
+                    <td data-label="Customer" class="px-4 py-4 font-medium uppercase truncate max-w-[100px]">${b.customer} ${isCancelled ? '<span class="text-[9px] font-black bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded tracking-wide ml-1">CANCELLED</span>' : ''}</td>
+                    <td data-label="Delivery" class="px-4 py-4 text-xs font-bold ${dateColor}">${formattedDelivery}</td>
+                    <td data-label="Subtotal" class="px-4 py-4 text-right">₹${b.subtotal}</td>
+                    <td data-label="Advance" class="px-4 py-4 text-right font-bold text-indigo-600">₹${b.advance || 0}</td>
+                    <td data-label="Balance Due" class="px-4 py-4 text-right font-black ${isCancelled ? 'text-slate-400' : balanceColor}">
+                        ${isCancelled ? '₹0.00' : balanceText}
+                    </td>
+                    <td class="px-4 py-4 text-center">
+                        <div class="action-dropdown">
+                            <button onclick="toggleDropdown(event, ${i})" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200">
+                                Action
+                            </button>
+                            <div id="dropdown-${i}" class="dropdown-menu">
+                                <button onclick="closeAllDropdowns();showInfo(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Details</button>
+                                <button onclick="closeAllDropdowns();openEditModal(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-indigo-600 hover:bg-indigo-50 border-b">Edit / Pay</button>
+                                <button onclick="closeAllDropdowns();printSavedBill(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-50 border-b">Print</button>
+                                <button onclick="closeAllDropdowns();deleteBill('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50 border-b">Delete</button>
+                                <button onclick="closeAllDropdowns(); printKnotTag('${b.id}', '${formatDateDDMMYYYY(b.date)}', '${b.packagedOn ? b.packagedOn : (b.deliveryDate ? formatDateDDMMYYYY(b.deliveryDate) : formatDateDDMMYYYY(b.date))}', '${b.packagedTime ? b.packagedTime : (b.deliveryTime ? b.deliveryTime : '22:00')}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-amber-600 hover:bg-amber-50 ${isCancelled ? '' : 'border-b'}">
+                                    Sticky Tag
+                                </button>
+                                ${!isCancelled ? `<button onclick="closeAllDropdowns();cancelOrder('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50">Cancel Order</button>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+
+if (currentSavedBills.length > 7) {
+    document.getElementById('viewMoreContainer').innerHTML =
+        `<a href="viewbills.html" class="text-blue-600 font-semibold text-sm hover:underline">
+            View More Bills...
+        </a>`;
+}
+
+} catch (err) {
+    console.error("Could not load bills.");
+}
+}
+
+    async function cancelOrder(billId) {
+        const reason = prompt("Enter the cancellation note / reason for Bill " + billId + ":");
+        if (reason === null) return; 
+        
+        if (!reason.trim()) {
+            alert("A cancellation note is required to process this request.");
+            return;
+        }
+
+        if (confirm(`Are you sure you want to completely cancel order ${billId}?`)) {
+            try {
+                const response = await fetch(`/api/bills/${billId}/cancel`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        orderStatus: 'cancelled',
+                        cancellationNote: reason.trim() 
+                    })
+                });
+
+                if (response.ok) {
+                    alert(`Order ${billId} has been successfully cancelled.`);
+                    await loadSavedBills();
+                } else {
+                    alert("Failed to update status on server.");
+                }
+            } catch (err) {
+                console.error("Connection error while cancelling order:", err);
+                alert("Server connection failed.");
+            }
+        }
+    }
+
+    async function showInfo(index) {
+        const b = currentSavedBills[index];
+        const body = document.getElementById('modalBody');
+        
+        let historyHtml = `
+            <div class="mt-8 border-t border-slate-100 pt-6">
+                <h4 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-red-600 rounded-full"></span>
+                    Activity Log
+                </h4>
+                <div class="space-y-0 border-l-2 border-slate-100 ml-2">`;
+
+        try {
+            const hRes = await fetch(`/api/bills/${b.id}/history`);
+            const history = await hRes.json();
+            
+            if(history.length > 0) {
+                historyHtml += history.map(h => `
+                    <div class="relative pl-6 pb-6 group">
+                        <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full border-4 border-white bg-slate-300 group-hover:bg-red-600 transition-colors shadow-sm"></div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase mb-1">${h.edit_date}</span>
+                            <div class="bg-white border border-slate-200 rounded-lg p-3 hover:border-red-200 hover:shadow-sm transition-all">
+                                <p class="text-xs text-slate-600 leading-relaxed">${h.change_log}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                historyHtml += `<div class="pl-6 pb-4"><p class="text-xs text-slate-400 italic">No modifications found.</p></div>`;
+            }
+        } catch (e) { 
+            historyHtml += '<p class="text-xs text-red-500 pl-6">Unable to sync logs.</p>'; 
+        }
+        
+        historyHtml += `</div></div>`;
+
+        body.innerHTML = `
+            <div class="space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Customer</p>
+                        <p class="text-sm font-bold uppercase text-slate-900">${b.customer}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Phone</p>
+                        <p class="text-sm font-semibold text-slate-700">${b.phone || 'N/A'}</p>
+                    </div>
+                    <div class="col-span-2">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Address</p>
+                        <p class="text-sm font-semibold text-slate-700">${b.address || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-indigo-400 font-bold uppercase mb-1">Packaged Date</p>
+                        <p class="text-sm font-black text-indigo-600">${b.packagedOn ? formatDateDDMMYYYY(b.packagedOn) : 'NOT PACKAGED'}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-indigo-400 font-bold uppercase mb-1">Packaged Time</p>
+                        <p class="text-sm font-black text-indigo-600">${b.packagedTime ? formatTime12H(b.packagedTime) : 'NOT PACKAGED'}</p>
+                    </div>
+                    ${b.orderStatus === 'cancelled' ? `
+                    <div class="col-span-2 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                        <p class="text-[10px] text-rose-500 font-black uppercase mb-0.5">Cancellation Note</p>
+                        <p class="text-xs text-rose-900 font-medium uppercase">${b.cancellationNote || 'NO NOTE PROVIDED'}</p>
+                    </div>` : ''}
+                </div>
+                <div class="bg-indigo-50/50 p-4 rounded-xl space-y-2 border border-indigo-100">
+                    <p class="text-[10px] text-indigo-400 font-black uppercase mb-2">Itemized List</p>
+                    ${b.items.map(it => `
+                        <div class="flex justify-between text-xs uppercase tracking-tight">
+                            <span class="text-slate-600">${it.name} <span class="text-slate-400 text-[10px]">x${it.quantity}</span></span>
+                            <b class="text-slate-900">₹${fmt(it.price * it.quantity)}</b>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="border-t border-slate-100 pt-4">
+                    <div class="flex justify-between items-center text-lg font-black uppercase">
+                        <span class="text-slate-500 text-sm">Balance Due</span>
+                        <span class="text-indigo-600">₹${fmt(b.total || 0)}</span>
+                    </div>
+                </div>
+                <div class="pt-2">${historyHtml}</div>
+            </div>`;
+        document.getElementById('infoModal').classList.remove('hidden');
+    }
+
+    function openEditModal(index) {
+        const b = currentSavedBills[index];
+        const body = document.getElementById('editModalBody');
+        b.originalAdvance = parseFloat(b.advance || 0);
+
+        body.innerHTML = `
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <p class="text-[10px] font-black text-red-600 uppercase tracking-widest">Edit: ${b.id}</p>
+                    <span class="text-[10px] px-2 py-1 bg-slate-100 rounded text-slate-500 font-bold uppercase">${formatDateDDMMYYYY(b.date)}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Delivery Date</label>
+                        <input id="updDate" type="date" value="${b.deliveryDate || ''}" class="w-full border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Delivery Time</label>
+                        <input id="updTime" type="time" value="${b.deliveryTime || ''}" class="w-full border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-red-500">
+                    </div>
+                </div>
+                <div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    <label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-tight">Payment Status</label>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1">
+                            <span class="text-[9px] text-slate-400 uppercase font-bold">Total Advance Paid</span>
+                            <input id="updAdvance" type="number" value="${b.originalAdvance}" class="w-full border-none p-0 text-lg font-black text-slate-900 focus:ring-0" placeholder="0.00">
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[9px] text-slate-400 uppercase font-bold">Bill Total</span>
+                            <p class="text-lg font-black text-slate-400">₹${fmt(parseFloat(b.subtotal) - parseFloat(b.discount || 0))}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('markPaidBtn').onclick = () => { 
+            const totalBill = parseFloat(b.subtotal) - parseFloat(b.discount || 0); 
+            document.getElementById('updAdvance').value = totalBill.toFixed(2); 
+        };
+        document.getElementById('saveEditBtn').onclick = () => updateRecord(index);
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    async function updateRecord(index) {
+        let b = currentSavedBills[index];
+        const mongoId = b._id; 
+        
+        const newDate = document.getElementById('updDate').value;
+        const newTime = document.getElementById('updTime').value;
+        const newTotalAdv = document.getElementById('updAdvance').value;
+        const newBalance = parseFloat(b.subtotal) - parseFloat(b.discount || 0) - parseFloat(newTotalAdv);
+
+        try {
+            const response = await fetch(`/api/bills/${mongoId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    deliveryDate: newDate,
+                    deliveryTime: newTime,
+                    advance: newTotalAdv,
+                    total: fmt(newBalance)
+                })
+            });
+            
+            if(response.ok) { 
+                alert("Record updated successfully!");
+                await loadSavedBills(); 
+                closeModal('editModal'); 
+            } else {
+                alert("Update failed. Check server console.");
+            }
+        } catch (err) { console.error("Update error:", err); }
+    }
+
+    function populatePrintArea(b) {
+        document.getElementById('pBillNo').innerText = "BILL: " + b.id;
+        document.getElementById('pDate').innerText = "DATE: " + formatDateDDMMYYYY(b.date);
+        document.getElementById('pCustomer').innerText = "CUSTOMER: " + b.customer;
+        document.getElementById('pPhone').innerText = "PHONE: " + (b.phone || "N/A");
+        document.getElementById('pAddress').innerText = b.address ? "ADDRESS: " + b.address : "";
+        document.getElementById('pDeliveryDate').innerText = b.deliveryDate ? "DELIVERY DATE: " + formatDateDDMMYYYY(b.deliveryDate) : "";
+        document.getElementById('pDeliveryTime').innerText = b.deliveryTime ? "DELIVERY TIME: " + formatTime12H(b.deliveryTime) : "";
+        document.getElementById('pSubtotal').innerText = b.subtotal;
+        document.getElementById('pDiscount').innerText = fmt(b.discount || 0);
+        document.getElementById('pAdvance').innerText = fmt(b.advance || 0);
+        document.getElementById('pTotal').innerText = fmt(b.total || 0);
+        document.getElementById('pItems').innerHTML = b.items.map(i => `<div style="display:flex;"><div style="width:50%; text-transform: uppercase;">${i.name} x${i.quantity}</div><div style="width:20%; text-align:center;">${i.quantity}</div><div style="width:30%; text-align:right;">₹${fmt(i.price * i.quantity)}</div></div>`).join('');
+    }
+
+    function printThermal() { 
+        if(billItems.length === 0) return alert("Add items first"); 
+        populatePrintArea(getCurrentBillObj()); 
+        executePrint(); 
+    }
+    
+    function printSavedBill(index) { 
+        populatePrintArea(currentSavedBills[index]); 
+        executePrint(); 
+    }
+    
+    function executePrint() { 
+        const win = window.open('', '', 'width=58mm,height=auto'); 
+        win.document.write('<html><head><style>@media print { body { margin: 0; } }</style></head><body>' + document.getElementById('printArea').innerHTML + '</body></html>'); 
+        win.document.close(); 
+        setTimeout(() => { win.print(); win.close(); }, 500); 
+    }
+
+    async function clearBill() {
+        billItems = []; 
+        document.getElementById('orderType').value = "dine-in";
+        handleOrderTypeChange();
+        document.getElementById('customerName').value = ""; 
+        document.getElementById('customerPhone').value = ""; 
+        document.getElementById('customerAddress').value = ""; 
+        document.getElementById('deliveryDate').value = ""; 
+        document.getElementById('deliveryTime').value = ""; 
+        document.getElementById('discount').value = 0; 
+        document.getElementById('advance').value = 0; 
+        renderBillItems();
+        
+        return await fetchNewBillId();
+    }
+
+    async function deleteBill(billId) {
+        if(confirm("Delete this transaction permanently?")) {
+            const response = await fetch(`/api/bills/${billId}`, { method: 'DELETE' });
+            if (response.ok) { loadSavedBills(); }
+        }
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function logout() { localStorage.removeItem("fruitz_session"); window.location.href = "login.html"; }
+
+    async function fetchMenuFromDB() {
+        try {
+            const response = await fetch('/api/menu');
+            if (response.ok) {
+                menu = await response.json();
+                renderMenu();
+            }
+        } catch (err) { console.error("Could not load menu items."); }
+    }
+
+   document.getElementById('customerPhone').addEventListener('input', async function(e) {
+        const phone = e.target.value.trim();
+        const pastOrdersBox = document.getElementById('pastOrdersContainer');
+        const alertBanner = document.getElementById('cancellationAlertBanner');
+        const rowsTarget = document.getElementById('pastOrdersRows');
+        const cardsTarget = document.getElementById('pastOrdersCards');
+        
+        if (phone.length !== 10) {
+            pastOrdersBox.classList.add('hidden');
+            alertBanner.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/customers/${phone}/history`);
+            if (response.ok) {
+                const data = await response.json(); 
+                
+                if (data.profile) {
+                    if (data.profile.name) {
+                        document.getElementById('customerName').value = data.profile.name.toUpperCase();
+                    }
+                    if (data.profile.address) {
+                        document.getElementById('customerAddress').value = data.profile.address.toUpperCase();
+                    }
+                }
+
+                if (data.history && data.history.length > 0) {
+                    const mostRecentOrder = data.history[0];
+                    if (mostRecentOrder.orderStatus === 'cancelled') {
+                        alertBanner.classList.remove('hidden');
+                    } else {
+                        alertBanner.classList.add('hidden');
+                    }
+
+                    let tableHTML = '';
+                    let cardsHTML = '';
+
+                    data.history.forEach(order => {
+                        const isCancelled = order.orderStatus === 'cancelled';
+                        const balance = parseFloat(order.total || 0);
+                        
+                        let statusText = balance > 0 ? 'DUE' : 'PAID';
+                        let statusClass = balance > 0 ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600';
+                        
+                        if (isCancelled) {
+                            statusText = 'CANCELLED';
+                            statusClass = 'bg-rose-100 text-rose-700 border border-rose-200';
+                        }
+
+                        let itemsSummary = order.items.map(i => `${i.name} (x${i.quantity})`).join(', ');
+                        if (isCancelled && order.cancellationNote) {
+                            itemsSummary += ` <br><span class="text-[10px] text-rose-600 font-bold tracking-wide block mt-1 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 max-w-max">NOTE: ${order.cancellationNote.toUpperCase()}</span>`;
+                        }
+
+                        const orderAmount = parseFloat(order.subtotal - (order.discount || 0)).toFixed(2);
+                        const rowDecorationClass = isCancelled ? 'line-through text-slate-400 opacity-75' : '';
+
+                        tableHTML += `
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="py-3 px-3 font-mono font-bold text-indigo-600 ${isCancelled ? 'text-slate-400' : ''}">${order.id}</td>
+                                <td class="py-3 px-3 text-slate-500">${formatDateDDMMYYYY(order.date)}</td>
+                                <td class="py-3 px-3 text-slate-600 max-w-[280px] uppercase">${itemsSummary}</td>
+                                <td class="py-3 px-3 text-right font-bold ${rowDecorationClass} text-slate-900">₹${orderAmount}</td>
+                                <td class="py-3 px-3 text-center">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${statusClass}">
+                                        ${statusText}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+
+                        cardsHTML += `
+                            <div class="bg-white rounded-xl p-3 border border-slate-200 flex flex-col gap-1 text-xs shadow-sm">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-mono font-black text-indigo-600 ${isCancelled ? 'text-slate-400 line-through' : ''}">${order.id}</span>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${statusClass}">
+                                        ${statusText}
+                                    </span>
+                                </div>
+                                <div class="text-[10px] font-medium text-slate-400">${formatDateDDMMYYYY(order.date)}</div>
+                                <div class="text-slate-700 font-bold uppercase mt-1 break-words">${itemsSummary}</div>
+                                <div class="text-right font-black text-slate-900 text-sm mt-1 border-t border-slate-200/60 pt-1 ${rowDecorationClass}">
+                                    ₹${orderAmount}
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    rowsTarget.innerHTML = tableHTML;
+                    cardsTarget.innerHTML = cardsHTML;
+                    
+                    pastOrdersBox.classList.remove('hidden');
+                } else {
+                    pastOrdersBox.classList.add('hidden');
+                    alertBanner.classList.add('hidden');
+                }
+            }
+        } catch (err) {
+            console.error("Failed to parse customer history stream:", err);
+        }
+    });
+
+    window.onload = () => { 
+        handleOrderTypeChange();
+        fetchMenuFromDB(); 
+        loadSavedBills(); 
+        fetchNewBillId();
+    };
+</script>
+</body>
+</html>

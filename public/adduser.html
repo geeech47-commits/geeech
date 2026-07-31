@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+   async function checkAuth() {
+    try {
+        const response = await fetch('/api/current-user');
+
+        if (!response.ok) {
+            window.location.href = "login.html";
+            return;
+        }
+
+        const data = await response.json();
+
+        // 🔒 BLOCK NON-ADMINS
+        if (data.role !== 'admin') {
+            alert("Access Denied: Admins only");
+            window.location.href = "homepage.html";
+        }
+
+    } catch (err) {
+        window.location.href = "login.html";
+    }
+}
+</script>
+  <meta charset="UTF-8" />
+  <title>Fruit’z | System Access</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #ffffff; color: #0f172a; padding-bottom: 80px; }
+    @media (min-width: 768px) { body { padding-bottom: 0; } }
+    
+    .sidebar { background: #f8fafc; border-right: 1px solid #f1f5f9; }
+    .mobile-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-top: 1px solid #f1f5f9; }
+    .crimson-text { color: #be123c; }
+    
+    .input-underlined {
+        border-bottom: 2px solid #e2e8f0;
+        background: transparent;
+        padding: 12px 4px;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+    .input-underlined:focus {
+        outline: none;
+        border-color: #be123c;
+    }
+    .btn-dark {
+        background: #0f172a;
+        color: white;
+        padding: 14px 28px;
+        border-radius: 8px;
+        font-weight: 600;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+    .btn-dark:hover { background: #be123c; transform: translateY(-1px); }
+    @media (min-width: 768px) { .btn-dark { width: auto; } }
+
+    /* Action Dropdown Logic */
+    .action-dropdown { position: relative; display: inline-block; }
+    .dropdown-menu { 
+        display: none; 
+        position: absolute; 
+        right: 0; 
+        top: 100%; 
+        z-index: 50; 
+        min-width: 160px; 
+        background: white;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        border: 1px solid #f1f5f9;
+        border-radius: 0.75rem;
+        margin-top: 5px;
+    }
+    .dropdown-menu.show { display: block; }
+
+    /* Fix for Mobile Jumbling */
+    @media (max-width: 767px) {
+        thead { display: none; } /* Hide headers on mobile */
+        tr { 
+            display: block; 
+            margin-bottom: 1.5rem; 
+            padding: 1rem; 
+            background: #f8fafc; 
+            border-radius: 12px; 
+            border: 1px solid #f1f5f9;
+        }
+        td { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 0.5rem 0 !important; 
+            border: none !important;
+            word-break: break-all;
+        }
+        td:before { 
+            content: attr(data-label); 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            font-size: 10px; 
+            color: #94a3b8; 
+            margin-right: 1rem;
+            min-width: 80px;
+        }
+        td:last-child { justify-content: flex-end; border-top: 1px solid #e2e8f0 !important; margin-top: 10px; padding-top: 12px !important; }
+        td:last-child:before { display: none; } /* Hide Action label */
+    }
+  </style>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen">
+
+  <!-- Desktop Sidebar -->
+  <aside class="sidebar w-64 hidden md:flex flex-col p-8 sticky top-0 h-screen">
+    <div class="mb-12">
+        <span class="text-2xl font-800 tracking-tighter crimson-text uppercase">Fruit’z</span>
+    </div>
+    <nav class="flex-1 space-y-6">
+        <a href="homepage.html" class="block text-sm font-bold text-slate-400 hover:text-slate-900 uppercase tracking-widest">Dashboard</a>
+        <a href="#" class="block text-sm font-bold text-slate-900 uppercase tracking-widest border-r-4 border-rose-600">Add Staff</a>
+    </nav>
+    <div class="pt-8 border-t border-slate-200">
+        <p class="text-[10px] font-black uppercase text-slate-400 mb-1">Active User</p>
+        <p class="text-sm font-bold leading-tight">
+            <span id="desktopUser" class="capitalize text-blue-600">Loading...</span> | 
+            <span id="desktopRole" class="text-green-600 text-[10px] uppercase"></span>
+        </p>
+    </div>
+  </aside>
+
+  <!-- Mobile Bottom Navigation -->
+  <nav class="mobile-nav fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center p-4 md:hidden">
+    <a href="homepage.html" class="text-[10px] font-black uppercase text-slate-400">Dashboard</a>
+    <div class="h-8 w-[1px] bg-slate-200"></div>
+    <a href="#" class="text-[10px] font-black uppercase text-rose-600">Add Staff</a>
+    <div class="h-8 w-[1px] bg-slate-200"></div>
+    <button onclick="logout()" class="text-[10px] font-black uppercase text-slate-400">Logout</button>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 p-6 md:p-16">
+    <div class="md:hidden flex justify-between items-center mb-8">
+        <span class="text-xl font-800 crimson-text uppercase">Fruit’z</span>
+        <div class="text-right">
+            <span class="text-xs font-bold capitalize text-blue-600" id="mobileUser"></span>
+            <span class="text-[10px] font-bold text-green-600 uppercase ml-1" id="mobileRole"></span>
+        </div>
+    </div>
+
+    <header class="max-w-2xl mb-12">
+        <h1 class="text-3xl md:text-4xl font-800 tracking-tight text-slate-900 mb-4">Add Staff</h1>
+        <p class="text-base md:text-lg text-slate-500">Generate secure credentials and manage your current team.</p>
+    </header>
+
+    <div class="max-w-2xl">
+        <form id="addUserForm" autocomplete="off" class="space-y-10 mb-20">
+            <div style="position: absolute; left: -9999px;">
+                <input type="text" name="prevent_user_suggestion">
+                <input type="password" name="prevent_password_suggestion">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-2">
+                    <label class="text-[11px] font-black uppercase text-slate-400 tracking-widest">Username</label>
+                    <input type="text" id="un_field_new" name="un_field_new" class="input-underlined" placeholder="Name" autocomplete="off" required>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[11px] font-black uppercase text-slate-400 tracking-widest">Role</label>
+                    <select id="role_field_new" class="input-underlined cursor-pointer" required>
+                        <option value="" disabled selected>Select Position</option>
+                        <option value="manager">Manager</option>
+                        <option value="billing_executive">Billing Executive</option>
+                        <option value="admin">admin</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[11px] font-black uppercase text-slate-400 tracking-widest">Password</label>
+                <input type="password" id="pw_field_new" name="pw_field_new" class="input-underlined" placeholder="••••••••" autocomplete="new-password" required>
+            </div>
+
+            <div class="flex flex-col md:flex-row items-center gap-6">
+                <button type="submit" class="btn-dark shadow-xl shadow-slate-200">Register Staff</button>
+                <span id="statusMessage" class="text-xs font-bold hidden"></span>
+            </div>
+        </form>
+
+        <section class="mt-16 pb-32">
+            <header class="mb-6">
+                <h2 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Database Records</h2>
+            </header>
+
+            <div class="overflow-visible">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-100">
+                            <th class="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Username</th>
+                            <th class="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Role</th>
+                            <th class="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Password</th>
+                            <th class="pb-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffTableBody" class="text-sm"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+  </main>
+
+  <!-- POP-UP MODAL WINDOW -->
+  <div id="actionModal" class="fixed inset-0 z-[10000] hidden flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+      <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8 transform transition-all">
+          <div class="mb-6">
+              <h3 id="modalTitle" class="text-xl font-800 text-slate-900 uppercase tracking-tight">Update Details</h3>
+              <p id="modalDesc" class="text-xs text-slate-500 mt-1">Enter the new information below.</p>
+          </div>
+          
+          <div class="space-y-6">
+              <div id="inputContainer" class="space-y-2">
+                  <label id="modalLabel" class="text-[10px] font-black uppercase text-slate-400 tracking-widest">New Value</label>
+                  <input type="text" id="modalInput" class="input-underlined" placeholder="Type here...">
+                  <select id="modalSelect" class="input-underlined hidden">
+                      <option value="manager">Manager</option>
+                      <option value="billing_executive">Billing Executive</option>
+                      <option value="admin">admin</option>
+                  </select>
+              </div>
+
+              <div class="flex gap-3 pt-4">
+                  <button onclick="closeModal()" class="flex-1 py-3 text-[10px] font-black uppercase text-slate-400 hover:text-slate-600">Cancel</button>
+                  <button id="modalSubmitBtn" type="button" class="flex-1 btn-dark !py-3 !text-[10px]">Confirm Update</button>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <script>
+    let currentTarget = { username: '', type: '' };
+
+    function toggleDropdown(event, index) {
+        event.stopPropagation();
+        document.querySelectorAll('.dropdown-menu').forEach(m => {
+            if(m.id !== `dropdown-${index}`) m.classList.remove('show');
+        });
+        document.getElementById(`dropdown-${index}`).classList.toggle('show');
+    }
+
+    window.addEventListener('click', (e) => {
+        if (!e.target.closest('.action-dropdown')) {
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('show'));
+        }
+    });
+
+    function openModal(type, username) {
+        currentTarget = { type, username };
+        const modal = document.getElementById('actionModal');
+        const input = document.getElementById('modalInput');
+        const select = document.getElementById('modalSelect');
+        const title = document.getElementById('modalTitle');
+
+        modal.classList.remove('hidden');
+        input.value = '';
+        
+        if (type === 'role') {
+            title.innerText = "Update Role";
+            input.classList.add('hidden');
+            select.classList.remove('hidden');
+        } else {
+            title.innerText = `Update ${type}`;
+            input.classList.remove('hidden');
+            select.classList.add('hidden');
+            input.type = (type === 'password') ? 'password' : 'text';
+            input.placeholder = `Enter new ${type}`;
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('actionModal').classList.add('hidden');
+    }
+
+    document.getElementById('modalSubmitBtn').onclick = async () => {
+        const { type, username } = currentTarget;
+        const val = (type === 'role') ? document.getElementById('modalSelect').value : document.getElementById('modalInput').value;
+
+        if (!val && type !== 'role') { alert("Please enter a value"); return; }
+
+        try {
+            const res = await fetch(`/api/users/${username}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [type]: val })
+            });
+            if (res.ok) {
+                closeModal();
+                fetchStaffList();
+            }
+        } catch (e) { alert("Error updating user."); }
+    };
+
+    function handleAction(type, username) {
+        if (type === 'delete') {
+            if (confirm(`Delete ${username}?`)) {
+                fetch(`/api/users/${username}`, { method: 'DELETE' }).then(() => fetchStaffList());
+            }
+        } else {
+            openModal(type, username);
+        }
+    }
+
+    async function fetchUserData() {
+        try {
+            const response = await fetch('/api/current-user');
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('desktopUser').textContent = data.username;
+                document.getElementById('desktopRole').textContent = (data.role || 'ADMIN').toUpperCase();
+                document.getElementById('mobileUser').textContent = data.username;
+                document.getElementById('mobileRole').textContent = `(${(data.role || 'ADMIN').toUpperCase()})`;
+            }
+        } catch (e) {}
+    }
+document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('un_field_new').value;
+    const password = document.getElementById('pw_field_new').value;
+    const role = document.getElementById('role_field_new').value;
+
+    const status = document.getElementById('statusMessage');
+
+    try {
+        const res = await fetch('/api/users/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            status.textContent = "User added successfully ✅";
+            status.classList.remove('hidden');
+            status.classList.add('text-green-600');
+
+            document.getElementById('addUserForm').reset();
+
+            // Refresh list
+            fetchStaffList();
+        } else {
+            status.textContent = data.error || "Failed to add user ❌";
+            status.classList.remove('hidden');
+            status.classList.add('text-red-600');
+        }
+
+    } catch (err) {
+        status.textContent = "Server error ❌";
+        status.classList.remove('hidden');
+        status.classList.add('text-red-600');
+    }
+});
+    async function fetchStaffList() {
+    const tableBody = document.getElementById('staffTableBody');
+    try {
+        const response = await fetch('/api/users'); 
+        if (response.ok) {
+            const users = await response.json();
+            tableBody.innerHTML = users.map((user, i) => {
+                // Determine if this user is an admin
+                const isAdmin = user.role === 'admin' || user.username.toLowerCase() === 'admin';
+
+                return `
+                <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                    <td data-label="Username" class="py-4 font-bold capitalize text-blue-600">${user.username}</td>
+                    <td data-label="Role" class="py-4 font-bold text-green-600 uppercase text-[10px]">${user.role || 'STAFF'}</td>
+                    <td data-label="Password" class="py-4 text-slate-300 font-mono">${user.password}</td>
+                    <td class="py-4 text-right">
+                        <div class="action-dropdown">
+                            <button onclick="toggleDropdown(event, ${i})" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">
+                                Action
+                            </button>
+                            <div id="dropdown-${i}" class="dropdown-menu">
+                                <button onclick="handleAction('password', '${user.username}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Password</button>
+                                <button onclick="handleAction('username', '${user.username}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Username</button>
+                                <button onclick="handleAction('role', '${user.username}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-green-600 hover:bg-rose-50 border-b">Update Role</button>
+                                
+                                <!-- ONLY SHOW DELETE IF NOT ADMIN -->
+                                ${!isAdmin ? `
+                                <button onclick="handleAction('delete', '${user.username}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50">Delete User</button>
+                                ` : `
+                                <button class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-300 cursor-not-allowed" disabled>Protected</button>
+                                `}
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+    } catch (e) { tableBody.innerHTML = '<tr><td colspan="4">Error loading list.</td></tr>'; }
+}
+
+    async function logout() {
+        fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = "login.html");
+    }
+
+    window.onload = () => { fetchUserData(); fetchStaffList(); };
+  </script>
+</body>
+</html>

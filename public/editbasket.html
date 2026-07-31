@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit'z | Manage Premium Fruit Baskets</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5; /* whitesmoke background */
+            color: #333333;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- SIDEBAR PANEL --- */
+        .sidebar {
+            width: 260px;
+            background-color: #ffffff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .sidebar-brand {
+            padding: 1.5rem;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #d92323; /* signature red */
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 1rem 0;
+            flex-grow: 1;
+        }
+
+        .menu-item {
+            padding: 0.85rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #555555;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background-color: #fff5f5;
+            color: #d92323;
+            border-left: 4px solid #d92323;
+        }
+
+        /* --- MAIN CONTENT WORKSPACE --- */
+        .main-content {
+            margin-left: 260px;
+            flex-grow: 1;
+            padding: 2.5rem;
+            max-width: 1200px;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 1.8rem;
+            color: #111111;
+            font-weight: 700;
+        }
+
+        .page-subtitle {
+            font-size: 0.95rem;
+            color: #666666;
+            margin-top: 0.25rem;
+        }
+
+        /* --- EDITOR CONTAINER CARDS --- */
+        .editor-card {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #111111;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #444444;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background-color: #ffffff;
+            color: #333333;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #d92323;
+        }
+
+        /* --- DYNAMIC SUGGESTION BADGES --- */
+        .suggestions-tray {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 0.4rem;
+        }
+
+        .suggestion-badge {
+            background-color: #f5f5f5;
+            color: #555555;
+            padding: 0.3rem 0.7rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: 1px solid #e0e0e0;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .suggestion-badge:hover {
+            background-color: #fff5f5;
+            color: #d92323;
+            border-color: #d92323;
+        }
+
+        .btn-save {
+            background-color: #d92323;
+            color: #ffffff;
+            border: none;
+            padding: 0.8rem 1.8rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+            margin-top: 1.5rem;
+        }
+
+        .btn-save:hover {
+            background-color: #b81d1d;
+        }
+
+        /* --- PREVIEW DASHBOARD ITEMS --- */
+        .items-list-container {
+            margin-top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .item-list-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .item-info-meta strong {
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            background-color: #d92323;
+            color: #ffffff;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            margin-right: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-delete {
+            background-color: transparent;
+            color: #999999;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            font-size: 1.1rem;
+            transition: color 0.2s;
+        }
+
+        .btn-delete:hover {
+            color: #d92323;
+        }
+
+        /* --- MOBILE FRIENDLY MEDIA BREAKPOINT --- */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+
+            .sidebar-brand {
+                justify-content: center;
+                padding: 1rem;
+                border-bottom: 1px solid #e0e0e0;
+            }
+
+            .sidebar-menu {
+                display: flex;
+                flex-direction: row;
+                justify-content: center;
+                padding: 0;
+            }
+
+            .menu-item {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+
+            .menu-item:hover, .menu-item.active {
+                border-left: none;
+                border-bottom: 3px solid #d92323;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1.25rem;
+                width: 100%;
+            }
+
+            .page-header {
+                text-align: center;
+                margin-bottom: 1.5rem;
+            }
+
+            .editor-card {
+                padding: 1.25rem;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .full-width {
+                grid-column: span 1;
+            }
+
+            .btn-save {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .item-list-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .btn-delete {
+                align-self: flex-end;
+                padding: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <i class="fa-solid fa-lemon"></i> Fruit'z Panel
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="/edithomepage.html" class="menu-item"><i class="fa-solid fa-house-chimney-window"></i> Edit Homepage</a></li>
+            <li><a href="/editbasket.html" class="menu-item active"><i class="fa-solid fa-basket-shopping"></i> Premium Baskets</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h2 class="page-title">Dynamic Premium Basket Clusters</h2>
+            <p class="page-subtitle">Add or remove pricing variants and customize basket tier categories on your live storefront layout.</p>
+        </header>
+
+        <section class="editor-card">
+            <h3 class="card-title"><i class="fa-solid fa-folder-plus" style="color:#d92323;"></i> Add Variant Configuration</h3>
+            <form id="add-basket-item-form">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="basket-tier-input">Tier Category Name</label>
+                        <input type="text" id="basket-tier-input" placeholder="e.g., Starter, Deluxe, Premium Luxe, Executive" required autocomplete="off">
+                        <div class="suggestions-tray" id="tier-suggestions"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="basket-name-input">Option Button Title</label>
+                        <input type="text" id="basket-name-input" placeholder="e.g., Eco Solo Pack, Family Harvest Feast" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="basket-price-input">Price Point</label>
+                        <input type="text" id="basket-price-input" placeholder="e.g., $19.00, Rs. 1,499" required>
+                    </div>
+                    <div class="form-group full-width">
+                         <label for="basket-image-input">Basket Presentation Image</label>
+                         <input type="file" id="basket-image-input" accept="image/*" style="padding: 0.5rem; border: 1px dashed #cccccc; background: #ffffff; border-radius: 6px;">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="basket-desc-input">Item Specifications (Detailed Contents Description)</label>
+                        <textarea id="basket-desc-input" rows="3" placeholder="Specify inclusions..." required></textarea>
+                    </div>
+
+                </div>
+
+                <button type="submit" class="btn-save">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Configuration Option
+                </button>
+            </form>
+        </section>
+
+        <section class="editor-card">
+            <h3 class="card-title"><i class="fa-solid fa-rectangle-list" style="color:#d92323;"></i> Currently Active Storefront Items</h3>
+            <div class="items-list-container" id="admin-basket-items-list"></div>
+        </section>
+    </main>
+
+    <script type="text/javascript">
+        const basketForm = document.getElementById('add-basket-item-form');
+        const adminItemsListContainer = document.getElementById('admin-basket-items-list');
+        const tierSuggestionsTray = document.getElementById('tier-suggestions');
+        const tierInput = document.getElementById('basket-tier-input');
+
+        async function loadAdminBasketPanel() {
+            try {
+                const response = await fetch('/api/basket-items');
+                const items = await response.json();
+                
+                adminItemsListContainer.innerHTML = '';
+                tierSuggestionsTray.innerHTML = '';
+
+                if(!items || items.length === 0) {
+                    adminItemsListContainer.innerHTML = `<p style="color: #888888; font-style: italic; padding: 1rem; text-align: center;">No configurations active yet.</p>`;
+                    return;
+                }
+
+                const dynamicTiersSet = new Set();
+
+                items.forEach(item => {
+                    if(item.tier) dynamicTiersSet.add(item.tier.trim());
+
+                    // Check for custom database image string, fallback to default if empty
+                    const basketImgSrc = item.image || "https://images.unsplash.com/photo-1606787366850-de6330128bfc?auto=format&fit=crop&w=500&q=80";
+
+                    const row = document.createElement('div');
+                    row.className = 'item-list-row';
+                    // Inline styling override ensures image layout rows align nicely next to metadata
+                    row.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 1rem;";
+                    
+                    row.innerHTML = `
+                        <div class="item-info-meta" style="display: flex; gap: 15px; align-items: center;">
+                            <img src="${basketImgSrc}" alt="${item.name}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #e0e0e0; flex-shrink: 0;">
+                            <div>
+                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 4px;">
+                                    <strong>${item.tier}</strong>
+                                    <span style="font-weight: 600; font-size:1.05rem; color:#111111;">${item.name}</span>
+                                </div>
+                                <span style="color: #d92323; font-weight: 700; display: block; margin-bottom: 2px;">${item.price}</span>
+                                <p style="margin: 0; font-size: 0.88rem; color: #666666; line-height: 1.4;">${item.description}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteBasketItem('${item._id}')" class="btn-delete" title="Remove Option">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    `;
+                    adminItemsListContainer.appendChild(row);
+                });
+
+                if(dynamicTiersSet.size > 0) {
+                    dynamicTiersSet.forEach(existingTier => {
+                        const badge = document.createElement('span');
+                        badge.className = 'suggestion-badge';
+                        badge.innerText = existingTier;
+                        badge.addEventListener('click', () => {
+                            tierInput.value = existingTier;
+                        });
+                        tierSuggestionsTray.appendChild(badge);
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading panel data:", err);
+            }
+        }
+       // Helper utility to convert file inputs into clean text strings
+function convertFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
+
+basketForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('basket-image-input');
+    let base64ImageString = "";
+
+    // If an image file was selected, read it before sending payload
+    if (fileInput.files.length > 0) {
+        try {
+            base64ImageString = await convertFileToBase64(fileInput.files[0]);
+        } catch (err) {
+            alert("Failed to parse selected image file formatting.");
+            return;
+        }
+    }
+
+    const payload = {
+        tier: tierInput.value.trim(),
+        name: document.getElementById('basket-name-input').value.trim(),
+        price: document.getElementById('basket-price-input').value.trim(),
+        description: document.getElementById('basket-desc-input').value.trim(),
+        image: base64ImageString // Include the processed string in database transmission
+    };
+
+    try {
+        const response = await fetch('/api/basket-items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success || result.item || response.ok) {
+            document.getElementById('basket-name-input').value = '';
+            document.getElementById('basket-price-input').value = '';
+            document.getElementById('basket-desc-input').value = '';
+            fileInput.value = ''; // Clear image input field file cache
+            
+            await loadAdminBasketPanel();
+            alert("Custom variant arrangement uploaded successfully!");
+        } else {
+            alert("Server error: Failed to process document layout input.");
+        }
+    } catch (err) {
+        alert("Error saving layout option.");
+    }
+});
+        async function deleteBasketItem(id) {
+            if(!confirm("Are you sure you want to remove this configuration option?")) return;
+            try {
+                const response = await fetch(`/api/basket-items/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if(result.success || response.ok) await loadAdminBasketPanel();
+            } catch (err) {
+                alert("Failed to drop selected item.");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAdminBasketPanel);
+    </script>
+</body>
+</html>

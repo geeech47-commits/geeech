@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gee-Ech | Add Rider</title>
+
+    <!-- Auth Guard -->
+    <script>
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/current-user');
+                if (!response.ok) {
+                    window.location.href = "login.html";
+                }
+            } catch (err) {
+                window.location.href = "login.html";
+            }
+        }
+        checkAuth();
+    </script>
+
+    <!-- Tailwind CSS & Font Awesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', Arial, sans-serif; }
+        .logo-container { 
+          margin-bottom: 16px; 
+          display: flex;
+          justify-content: center;
+        }
+        .logo-img {
+          max-width: 100%;
+          width: 160px;
+          height: auto;
+        }
+
+        /* Center Popup Toast Animation */
+        @keyframes popupSlideIn {
+            from { opacity: 0; transform: translateY(-1rem) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-popup {
+            animation: popupSlideIn 0.25s ease-out forwards;
+        }
+
+        /* --- TOP THREE-LINE SLIDE MENU STYLING --- */
+        .top-slide-container { position: relative; display: inline-block; }
+        .menu-icon-btn {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          cursor: pointer;
+          width: 25px;
+          height: 22px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 0;
+        }
+        .menu-icon-line {
+          display: block;
+          width: 95%;
+          margin: 0 auto;
+          height: 2.5px;
+          background-color: #7c3aed;
+          border-radius: 9999px;
+          transition: transform 0.25s ease, opacity 0.25s ease;
+          transform-origin: center;
+        }
+        .menu-icon-btn.active .line-1 { transform: translateY(9.5px) rotate(45deg); }
+        .menu-icon-btn.active .line-2 { opacity: 0; }
+        .menu-icon-btn.active .line-3 { transform: translateY(-9.5px) rotate(-45deg); }
+
+        .top-slide-menu { 
+          display: none; 
+          position: absolute; 
+          right: 0; 
+          top: calc(100% + 10px); 
+          z-index: 99999; 
+          width: 200px; 
+          background: #fff; 
+          border: 1px solid #e2e8f0; 
+          border-radius: .75rem; 
+          box-shadow: 0 20px 30px -10px rgba(15,23,42,0.25); 
+          opacity: 0;
+          transform: translateY(-8px);
+          transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .top-slide-menu.show { 
+          display: block; 
+          opacity: 1;
+          transform: translateY(0);
+        }
+        .action-option { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .75rem .9rem; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; transition: background .15s ease; }
+
+        /* --- THIN SCROLLBAR STYLING --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(203, 213, 225, 0.6); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.8); }
+        * { scrollbar-width: thin; scrollbar-color: rgba(203, 213, 225, 0.6) transparent; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden" onclick="closeTopSlideMenuOnClickOutside(event)">
+
+    <!-- CENTER POPUP TOAST -->
+    <div id="centerToast" class="fixed inset-0 z-[999999] flex items-center justify-center pointer-events-none opacity-0 scale-95 transition-all duration-200">
+      <div class="bg-white text-slate-800 px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-200">
+        <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
+        <span id="centerToastText" class="text-xs font-bold tracking-wide uppercase">Rider Added Successfully</span>
+      </div>
+    </div>
+
+    <!-- VIEW MORE DETAILS MODAL -->
+    <div id="viewRiderModal" class="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/50 hidden">
+        <div class="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-popup m-4 border border-slate-200">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-800">Partner Details & Deliveries</h3>
+                <button onclick="closeViewModal()" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-5 bg-white">
+                <div class="flex flex-col items-center justify-center">
+                    <div id="modalPhotoContainer" class="w-28 h-36 rounded-2xl border border-slate-200 bg-white flex items-center justify-center overflow-hidden">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 bg-white p-4 rounded-2xl border border-slate-100">
+                    <div>
+                        <span class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Full Name</span>
+                        <p id="modalName" class="text-xs font-bold text-slate-900 mt-0.5">-</p>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Rider ID</span>
+                        <p id="modalRiderCode" class="text-xs font-bold text-purple-700 mt-0.5">-</p>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Mobile Number</span>
+                        <p id="modalMobile" class="text-xs font-bold text-slate-900 mt-0.5">-</p>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Vehicle No</span>
+                        <p id="modalVehicle" class="text-xs font-bold text-purple-700 uppercase mt-0.5">-</p>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Joined From</span>
+                        <p id="modalJoined" class="text-xs font-bold text-slate-900 mt-0.5">-</p>
+                    </div>
+                    <div class="col-span-2">
+                        <span class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Address</span>
+                        <p id="modalAddress" class="text-xs font-medium text-slate-700 mt-0.5">-</p>
+                    </div>
+                </div>
+
+                <hr class="border-t border-slate-100 my-2">
+
+                <div class="bg-white">
+                    <h4 class="text-xs font-extrabold uppercase text-slate-800 tracking-wider mb-2.5 flex items-center gap-2">
+                        <i class="fa-solid fa-box-archive text-purple-600"></i> Delivered Orders History
+                    </h4>
+                    <div class="border border-slate-100 rounded-2xl overflow-hidden bg-white">
+                        <table class="w-full text-left border-collapse bg-white">
+                            <thead>
+                                <tr class="bg-white border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <th class="py-2.5 px-3">Order ID</th>
+                                    <th class="py-2.5 px-3">Customer</th>
+                                    <th class="py-2.5 px-3">Amount</th>
+                                    <th class="py-2.5 px-3">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalOrdersTableBody" class="divide-y divide-slate-100 text-[11px] text-slate-700 bg-white">
+                                <tr>
+                                    <td colspan="4" class="py-4 text-center text-slate-400 font-medium">No orders delivered yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-3 border-t border-slate-100 bg-white flex justify-end">
+                <button onclick="closeViewModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOBILE OVERLAY BACKDROP -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-35 md:hidden hidden transition-opacity"></div>
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-white text-slate-700 flex flex-col justify-between shrink-0 h-full border-r border-slate-200 transition-transform duration-300 ease-in-out -translate-x-full md:translate-x-0">
+        
+        <div class="flex-1 overflow-y-auto min-h-0">
+            <div class="login-card relative pt-4">
+                <button onclick="toggleSidebar()" class="md:hidden absolute top-4 right-3 text-slate-400 hover:text-slate-700 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <div class="logo-container pt-2">
+                    <img src="logo.jpeg" alt="Logo" class="logo-img">
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="px-3 space-y-1">
+                <a href="index.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-chart-pie w-5 h-5 mr-3 text-violet-500 group-hover:text-violet-600"></i>
+                    Dashboard
+                </a>
+
+                <a href="punchorder.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-basket-shopping w-5 h-5 mr-3 text-indigo-500 group-hover:text-indigo-600"></i>
+                    Punch Online
+                </a>
+
+                <a href="viewbills.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-file-invoice-dollar w-5 h-5 mr-3 text-emerald-500 group-hover:text-emerald-600"></i>
+                    Invoices
+                </a>
+
+                <a href="todaysorders.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-truck-fast w-5 h-5 mr-3 text-amber-500 group-hover:text-amber-600"></i>
+                    Deliveries
+                </a>
+
+                <a href="editmenu.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-boxes-stacked w-5 h-5 mr-3 text-purple-500 group-hover:text-purple-600"></i>
+                    Stock
+                </a>
+
+                <a href="edithomepage.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-house w-5 h-5 mr-3 text-teal-500 group-hover:text-teal-600"></i>
+                    User Homepage
+                </a>
+
+                <!-- Admin Restricted Section -->
+                <div class="pt-3 border-t border-slate-200 mt-3">
+                    <p class="px-4 text-[10px] font-bold uppercase text-emerald-600 tracking-wider mb-2">Admin Section</p>
+                    <a href="adduser.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                        <i class="fa-solid fa-user-plus w-5 h-5 mr-3 text-emerald-500 group-hover:text-emerald-600"></i>
+                        <span>Add User</span>
+                    </a>
+                    <a href="addrider.html" class="nav-link flex items-center px-4 py-2.5 bg-violet-100 text-violet-900 font-semibold rounded-xl transition-all group">
+                        <i class="fa-solid fa-motorcycle w-5 h-5 mr-3 text-purple-600"></i>
+                        <span>Add Rider</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <!-- FIXED BOTTOM USER INFO SECTION -->
+        <div class="p-4 m-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-bold text-xs">
+                    <i class="fa-solid fa-user text-xs"></i>
+                </div>
+                <div class="overflow-hidden leading-tight">
+                    <h4 id="sidebarUsername" class="text-xs font-bold text-slate-800 truncate">Faizan</h4>
+                    <span id="sidebarRole" class="text-[9px] font-extrabold text-violet-700 bg-violet-100 border border-violet-200 px-1.5 py-0.2 rounded uppercase">super admin</span>
+                </div>
+            </div>
+            <button onclick="logout()" class="text-slate-400 hover:text-rose-600 p-2 transition" title="Logout">
+                <i class="fa-solid fa-right-from-bracket text-xs"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+
+        <!-- TOP BAR -->
+        <header class="bg-white border-b border-slate-200 px-6 sm:px-8 py-3.5 flex items-center justify-between shadow-sm z-10">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-600 hover:text-violet-600 p-1 focus:outline-none" title="Toggle Menu">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <h1 class="text-sm font-extrabold text-slate-800 uppercase tracking-wide">Delivery Partner Management</h1>
+            </div>
+
+            <div class="flex items-center gap-3 sm:gap-4">
+                <div class="hidden sm:flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-xl text-xs font-semibold">
+                    <span class="text-slate-500">Logged in as:</span>
+                    <span id="displayUsername" class="capitalize text-blue-600 font-bold">Faizan</span>
+                    <span id="displayRole" class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded uppercase font-bold">ADMIN</span>
+                </div>
+
+                <!-- TOP MENU -->
+                <div class="top-slide-container">
+                    <button id="menuToggleBtn" onclick="toggleTopSlideMenu(event)" class="menu-icon-btn focus:outline-none" title="Options">
+                        <span class="menu-icon-line line-1"></span>
+                        <span class="menu-icon-line line-2"></span>
+                        <span class="menu-icon-line line-3"></span>
+                    </button>
+                    <div id="topSlideMenu" class="top-slide-menu">
+                        <div class="p-1.5 space-y-1">
+                            <button onclick="window.location.href='index.html'" class="action-option text-slate-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg">
+                                <i class="fa-solid fa-chart-pie text-violet-600 w-4"></i> Dashboard View
+                            </button>
+                            <button onclick="window.location.reload()" class="action-option text-slate-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg">
+                                <i class="fa-solid fa-rotate text-violet-600 w-4"></i> Refresh Page
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- PAGE CONTENT CONTAINER -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50">
+            <div class="w-full px-2 sm:px-4 space-y-6">
+                
+                <!-- FLEX CONTAINER SPLIT: 70% ADD RIDER FORM & 30% DEACTIVATED PARTNERS -->
+                <div class="flex flex-col lg:flex-row gap-6 items-start w-full">
+                    
+                    <!-- ADD RIDER FORM CARD (70% Width) -->
+                    <div class="bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden p-4 sm:p-5 w-full lg:w-[70%]">
+                        <div class="flex items-center gap-3.5 mb-4 pb-3 border-b border-slate-100">
+                            <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center text-base font-bold shadow-2xs border border-purple-100/50">
+                                <i class="fa-solid fa-motorcycle"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-sm font-bold text-slate-900">Add New Rider</h2>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Register a delivery rider profile with vehicle and identity details</p>
+                            </div>
+                        </div>
+
+                        <form id="addRiderForm" onsubmit="submitRiderForm(event)" class="space-y-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Ride Name</label>
+                                    <input type="text" id="riderName" required placeholder="e.g. John Doe" class="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Mobile No</label>
+                                    <input type="tel" id="riderMobile" required pattern="[0-9]{10}" placeholder="10-digit mobile number" class="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Vehicle No</label>
+                                    <input type="text" id="riderVehicle" required placeholder="e.g. JK01AB1234" class="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs uppercase focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Photograph</label>
+                                    <input type="file" id="riderPhoto" accept="image/*" required class="w-full px-2.5 py-1.5 bg-slate-50/50 border border-slate-200 rounded-xl text-[11px] text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 transition">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Address</label>
+                                <textarea id="riderAddress" required rows="1" placeholder="Enter full residential address..." class="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-purple-600 focus:bg-white transition"></textarea>
+                            </div>
+
+                            <div class="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-100">
+                                <button type="button" onclick="window.location.reload()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">Reset</button>
+                                <button type="submit" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/20 transition">Save Rider Profile</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- DEACTIVATED PARTNERS CARD (30% Width) -->
+                    <div class="bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden p-4 sm:p-5 w-full lg:w-[30%]">
+                        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center text-sm font-bold shadow-2xs border border-rose-100/50">
+                                    <i class="fa-solid fa-user-slash"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-xs font-bold text-slate-900 uppercase">Deactivated Partners</h2>
+                                    <p class="text-[10px] text-slate-500 mt-0.5">Inactive or suspended profiles</p>
+                                </div>
+                            </div>
+                            <span id="deactivatedCountBadge" class="px-2 py-0.5 bg-rose-50 text-rose-600 font-bold text-[10px] rounded-full">0</span>
+                        </div>
+
+                        <div class="overflow-x-auto max-h-[250px] overflow-y-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        <th class="py-2.5 px-2">Partner</th>
+                                        <th class="py-2.5 px-2">Vehicle</th>
+                                        <th class="py-2.5 px-2 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="deactivatedTableBody" class="divide-y divide-slate-100 text-xs text-slate-700">
+                                    <tr>
+                                        <td colspan="3" class="py-6 text-center text-slate-400 font-medium text-[11px]">No deactivated partners.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- REGISTERED RIDERS DATABASE LIST SECTION -->
+                <div class="bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden p-6 sm:p-8 w-full">
+                    <!-- Header with Title, Count badge and Filters -->
+                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-lg font-bold shadow-2xs border border-emerald-100/50">
+                                <i class="fa-solid fa-users-gear"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Active Delivery Partners</h2>
+                                <p class="text-xs text-slate-500 mt-0.5">List of delivery partners currently registered in the database</p>
+                            </div>
+                        </div>
+
+                        <!-- Filters Section (Date picker + Status dropdown + Count) -->
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <span id="riderCountBadge" class="px-3 py-2 bg-slate-100 text-slate-600 font-bold text-xs rounded-xl hidden sm:inline-block">0 Active</span>
+                            
+                            <!-- Date Filter -->
+                            <div class="relative">
+                                <input type="date" id="filterDate" onchange="filterRiders()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-600 transition">
+                            </div>
+
+                            <!-- Status Filter Dropdown -->
+                            <div class="relative">
+                                <select id="filterStatus" onchange="filterRiders()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-600 transition cursor-pointer">
+                                    <option value="">All Statuses</option>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <th class="py-3 px-4">Partner Profile</th>
+                                    <th class="py-3 px-4">Contact</th>
+                                    <th class="py-3 px-4">Vehicle No</th>
+                                    <th class="py-3 px-4">Address</th>
+                                    <th class="py-3 px-4 text-center">Status</th>
+                                    <th class="py-3 px-4 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ridersTableBody" class="divide-y divide-slate-100 text-xs text-slate-700">
+                                <tr>
+                                    <td colspan="6" class="py-8 text-center text-slate-400 font-medium">Loading delivery partners...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let toastTimeout = null;
+        let cachedRiders = [];
+
+        function toggleTopSlideMenu(event) {
+          event.stopPropagation();
+          const menu = document.getElementById('topSlideMenu');
+          const btn = document.getElementById('menuToggleBtn');
+          menu.classList.toggle('show');
+          btn.classList.toggle('active');
+        }
+
+        function closeTopSlideMenuOnClickOutside(event) {
+          const menu = document.getElementById('topSlideMenu');
+          const btn = document.getElementById('menuToggleBtn');
+          if (menu && menu.classList.contains('show') && !menu.contains(event.target) && !btn.contains(event.target)) {
+            menu.classList.remove('show');
+            btn.classList.remove('active');
+          }
+        }
+
+        function showCenterToast(message = "Rider Added Successfully") {
+          const toast = document.getElementById('centerToast');
+          const toastText = document.getElementById('centerToastText');
+          toastText.textContent = message;
+          
+          if (toastTimeout) clearTimeout(toastTimeout);
+          
+          toast.classList.remove('opacity-0', 'scale-95');
+          toast.classList.add('opacity-100', 'scale-100');
+          
+          toastTimeout = setTimeout(() => {
+            toast.classList.remove('opacity-100', 'scale-100');
+            toast.classList.add('opacity-0', 'scale-95');
+          }, 2000);
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        async function fetchRidersList() {
+            try {
+                const response = await fetch('/api/riders');
+                if (response.ok) {
+                    cachedRiders = await response.json();
+                    renderRidersTable(cachedRiders);
+                    renderDeactivatedRiders(cachedRiders);
+                }
+            } catch (error) {
+                console.error("Error fetching riders:", error);
+                document.getElementById('ridersTableBody').innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-500 font-medium">Failed to load delivery partners list.</td></tr>`;
+            }
+        }
+
+        function renderDeactivatedRiders(riders) {
+            const tbody = document.getElementById('deactivatedTableBody');
+            const countBadge = document.getElementById('deactivatedCountBadge');
+
+            const deactivated = riders.filter(r => (r.status || 'Active').toLowerCase() === 'inactive');
+            countBadge.textContent = deactivated.length;
+
+            if (deactivated.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center text-slate-400 font-medium text-[11px]">No deactivated partners.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            deactivated.forEach(rider => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition";
+                const riderId = rider._id || rider.id;
+                const photoHtml = rider.riderPhoto 
+                    ? `<img src="${rider.riderPhoto}" class="w-7 h-7 rounded-lg object-cover border border-slate-200">`
+                    : `<div class="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-[10px]"><i class="fa-solid fa-user"></i></div>`;
+
+                tr.innerHTML = `
+                    <td class="py-2.5 px-2">
+                        <div class="flex items-center gap-2">
+                            ${photoHtml}
+                            <span class="font-bold text-slate-900 truncate max-w-[90px]">${escapeHtml(rider.riderName)}</span>
+                        </div>
+                    </td>
+                    <td class="py-2.5 px-2 font-semibold text-rose-700 uppercase text-[10px]">${escapeHtml(rider.riderVehicle)}</td>
+                    <td class="py-2.5 px-2 text-center">
+                        <button onclick="viewRider('${riderId}')" class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition" title="View">
+                            <i class="fa-solid fa-eye text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterRiders() {
+            const statusFilter = document.getElementById('filterStatus').value;
+            const dateFilter = document.getElementById('filterDate').value;
+
+            let filtered = cachedRiders.filter(rider => {
+                let matchesStatus = true;
+                let matchesDate = true;
+
+                if (statusFilter) {
+                    const riderStatus = rider.status || 'Active';
+                    if (riderStatus.toLowerCase() !== statusFilter.toLowerCase()) {
+                        matchesStatus = false;
+                    }
+                }
+
+                if (dateFilter && rider.createdAt) {
+                    const riderDate = new Date(rider.createdAt).toISOString().split('T')[0];
+                    if (riderDate !== dateFilter) {
+                        matchesDate = false;
+                    }
+                }
+
+                return matchesStatus && matchesDate;
+            });
+
+            renderRidersTable(filtered);
+        }
+
+        function renderRidersTable(riders) {
+            const tbody = document.getElementById('ridersTableBody');
+            const countBadge = document.getElementById('riderCountBadge');
+            
+            countBadge.textContent = `${riders.length} Partners`;
+
+            if (riders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 font-medium">No delivery partners listed yet.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            riders.forEach(rider => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition";
+                
+                const riderId = rider._id || rider.id;
+                const status = rider.status || 'Active';
+                const isActive = status.toLowerCase() === 'active';
+
+                const photoHtml = rider.riderPhoto 
+                    ? `<img src="${rider.riderPhoto}" class="w-9 h-9 rounded-xl object-cover border border-slate-200">`
+                    : `<div class="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-user"></i></div>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-3">
+                            ${photoHtml}
+                            <div>
+                                <p class="font-bold text-slate-900">${escapeHtml(rider.riderName)}</p>
+                                <p class="text-[10px] font-bold text-purple-600 mt-0.5">${escapeHtml(rider.riderCode || 'GH ID pending')}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 font-medium text-slate-600">${escapeHtml(rider.riderMobile)}</td>
+                    <td class="py-3 px-4 font-semibold text-purple-700 uppercase">${escapeHtml(rider.riderVehicle)}</td>
+                    <td class="py-3 px-4 text-slate-500 truncate max-w-xs" title="${escapeHtml(rider.riderAddress)}">${escapeHtml(rider.riderAddress)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 ${isActive ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'} border text-[10px] font-bold rounded-full uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse"></span>
+                            ${status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="viewRider('${riderId}')" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="View More">
+                                <i class="fa-solid fa-eye text-sm"></i>
+                            </button>
+                            <button onclick="deleteRider('${riderId}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete">
+                                <i class="fa-solid fa-trash-can text-sm"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function deleteRider(id) {
+            if (!confirm("Are you sure you want to delete this delivery partner?")) return;
+            try {
+                const response = await fetch(`/api/riders/${id}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    showCenterToast("Rider Deleted Successfully");
+                    fetchRidersList();
+                } else {
+                    const res = await response.json();
+                    alert(res.error || "Failed to delete rider.");
+                }
+            } catch (error) {
+                console.error("Error deleting rider:", error);
+                alert("An error occurred while deleting the rider.");
+            }
+        }
+
+        async function viewRider(id) {
+            const rider = cachedRiders.find(r => (r._id || r.id) === id);
+            if (!rider) return;
+
+            document.getElementById('modalName').textContent = rider.riderName || '-';
+            document.getElementById('modalRiderCode').textContent = rider.riderCode || 'GH ID pending';
+            document.getElementById('modalMobile').textContent = rider.riderMobile || '-';
+            document.getElementById('modalVehicle').textContent = rider.riderVehicle || '-';
+            document.getElementById('modalAddress').textContent = rider.riderAddress || '-';
+            
+            let joinedDate = rider.createdAt ? new Date(rider.createdAt).toLocaleDateString() : 'N/A';
+            document.getElementById('modalJoined').textContent = joinedDate;
+
+            const photoContainer = document.getElementById('modalPhotoContainer');
+            if (rider.riderPhoto) {
+                photoContainer.innerHTML = `<img src="${rider.riderPhoto}" class="w-full h-full object-cover">`;
+            } else {
+                photoContainer.innerHTML = `<i class="fa-solid fa-user text-3xl text-slate-300"></i>`;
+            }
+
+            const ordersTbody = document.getElementById('modalOrdersTableBody');
+            const orders = rider.deliveredOrders || [];
+
+            if (orders.length === 0) {
+                ordersTbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400 font-medium">No orders delivered yet.</td></tr>`;
+            } else {
+                ordersTbody.innerHTML = '';
+                orders.forEach(order => {
+                    ordersTbody.innerHTML += `
+                        <tr class="bg-white">
+                            <td class="py-2 px-3 font-bold text-slate-900">${escapeHtml(order.orderId || order._id || 'N/A')}</td>
+                            <td class="py-2 px-3 text-slate-700">${escapeHtml(order.customerName || 'Customer')}</td>
+                            <td class="py-2 px-3 font-semibold text-slate-900">₹${escapeHtml(String(order.amount || 0))}</td>
+                            <td class="py-2 px-3 text-slate-500">${order.time || 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            document.getElementById('viewRiderModal').classList.remove('hidden');
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewRiderModal').classList.add('hidden');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function compressRiderPhoto(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error('Could not read the rider photo.'));
+                reader.onload = () => {
+                    const image = new Image();
+                    image.onerror = () => reject(new Error('Could not process the rider photo.'));
+                    image.onload = () => {
+                        const maxSize = 480;
+                        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.max(1, Math.round(image.width * scale));
+                        canvas.height = Math.max(1, Math.round(image.height * scale));
+                        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.78));
+                    };
+                    image.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function submitRiderForm(event) {
+            event.preventDefault();
+            const riderName = document.getElementById('riderName').value;
+            const riderMobile = document.getElementById('riderMobile').value;
+            const riderVehicle = document.getElementById('riderVehicle').value;
+            const riderAddress = document.getElementById('riderAddress').value;
+            const photoInput = document.getElementById('riderPhoto');
+
+            let riderPhoto = "";
+
+            if (photoInput.files && photoInput.files[0]) {
+                const file = photoInput.files[0];
+                riderPhoto = await compressRiderPhoto(file);
+            }
+
+            try {
+                const response = await fetch('/api/riders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        riderName,
+                        riderMobile,
+                        riderVehicle,
+                        riderAddress,
+                        riderPhoto
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showCenterToast(`Rider "${riderName}" Registered Successfully!`);
+                    document.getElementById('addRiderForm').reset();
+                    fetchRidersList();
+                } else {
+                    alert(result.error || "Failed to add rider profile.");
+                }
+            } catch (error) {
+                console.error("Network or server error:", error);
+                alert("An error occurred while saving the rider profile.");
+            }
+        }
+
+        async function displayLoggedInUser() {
+            try {
+                const response = await fetch('/api/current-user', { credentials: 'include' });
+                if (response.ok) {
+                    const data = await response.json();
+                    const username = data.username || 'Faizan';
+                    const role = (data.role || 'admin').toLowerCase();
+
+                    document.getElementById('displayUsername').textContent = username;
+                    document.getElementById('displayRole').textContent = role.toUpperCase();
+                    document.getElementById('sidebarUsername').textContent = username;
+                    document.getElementById('sidebarRole').textContent = role.toUpperCase();
+                }
+            } catch (error) {
+                console.error("Could not fetch user profile:", error);
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = "login.html";
+        }
+
+        window.onload = () => {
+            displayLoggedInUser();
+            fetchRidersList();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit'z | Homepage Content Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5; /* whitesmoke background */
+            color: #333333;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- SIDEBAR PANEL --- */
+        .sidebar {
+            width: 260px;
+            background-color: #ffffff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .sidebar-brand {
+            padding: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #dc2626; /* Brand Red Accent */
+            border-bottom: 1px solid #f5f5f5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 1rem 0;
+            flex-grow: 1;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1.5rem;
+            color: #555555;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .menu-item:hover {
+            background-color: #f5f5f5;
+            color: #000000;
+        }
+
+        .menu-item.active {
+            background-color: #fef2f2; /* Light red tint */
+            color: #dc2626; /* Active Red text */
+            border-left-color: #dc2626; /* Active Red indicator */
+            font-weight: 600;
+        }
+
+        /* Specialized Styling for Back navigation link alignment */
+        .menu-item.back-link {
+            border-bottom: 1px solid #f5f5f5;
+            margin-bottom: 0.5rem;
+            color: #666666;
+            font-weight: 600;
+        }
+        
+        .menu-item.back-link:hover {
+            color: #dc2626;
+            background-color: #fef2f2;
+        }
+
+        /* --- MAIN CONTENT CONTAINER --- */
+        .main-content {
+            margin-left: 260px;
+            flex-grow: 1;
+            padding: 2.5rem;
+            max-width: 1200px;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-header h2 {
+            font-size: 1.75rem;
+            color: #111111;
+            margin-bottom: 0.25rem;
+        }
+
+        .page-header p {
+            color: #666666;
+            font-size: 0.95rem;
+        }
+
+        /* --- DASHBOARD WORKSPACE SECTIONS --- */
+        .editor-section {
+            display: none; /* Controlled via JS switching */
+            animation: fadeIn 0.3s ease;
+        }
+
+        .editor-section.active-section {
+            display: block;
+        }
+
+        /* Standard Editor Box Card */
+        .panel-card {
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            border: 1px solid #e0e0e0;
+        }
+
+        .section-title {
+            color: #111111;
+            border-bottom: 2px solid #f5f5f5;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.25rem;
+        }
+
+        /* Standardized Grid Forms */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #444444;
+        }
+
+        input[type="text"], input[type="email"], input[type="tel"], select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cccccc;
+            border-radius: 6px;
+            background-color: #ffffff;
+            font-size: 0.95rem;
+            color: #222222;
+            transition: border-color 0.15s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #dc2626; /* Focus indicator turns Red */
+        }
+
+        /* Standard Action Buttons */
+        .btn-save {
+            background-color: #dc2626; /* Signature Red Button */
+            color: #ffffff;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+
+        .btn-save:hover {
+            background-color: #b91c1c;
+        }
+
+        /* Quick Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile Layout Handling */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid #e0e0e0; }
+            .main-content { margin-left: 0; padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <i class="fa-solid fa-screwdriver-wrench"></i> Panel Editor
+        </div>
+        <ul class="sidebar-menu">
+            <a href="/" class="menu-item back-link">
+                <i class="fa-solid fa-arrow-left" style="width: 20px;"></i> Back to Homepage
+            </a>
+            
+            <li class="menu-item active" onclick="switchSection('contacts-section', this)">
+                <i class="fa-solid fa-address-book" style="width: 20px;"></i> Edit Contacts
+            </li>
+            <li class="menu-item" onclick="switchSection('paragraphs-section', this)">
+                <i class="fa-solid fa-file-lines" style="width: 20px;"></i> Edit Paragraphs
+            </li>
+            <a href="/editbasket.html" class="menu-item">
+                <i class="fa-solid fa-basket-shopping" style="width: 20px;"></i> Edit Baskets Section
+            </a>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        
+        <div class="page-header">
+            <h2>Homepage Management Console</h2>
+            <p>Modify public layouts, text descriptions, and basic configuration contents instantly.</p>
+        </div>
+
+        <section id="contacts-section" class="editor-section active-section">
+            <div class="panel-card">
+                <h3 class="section-title">
+                    <i class="fa-solid fa-address-book" style="color: #dc2626;"></i> Update Public Contact Channels
+                </h3>
+                <form id="contact-edit-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Customer Support Hotline</label>
+                            <input type="tel" value="+1 (555) 019-2831" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Business Operations Email</label>
+                            <input type="email" value="operations@fruitz.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Physical HQ Street Location</label>
+                            <input type="text" value="104 Orchard Boulevard, Suite B" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-save">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Contact Fields
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <section id="paragraphs-section" class="editor-section">
+            <div class="panel-card">
+                <h3 class="section-title">
+                    <i class="fa-solid fa-file-lines" style="color: #dc2626;"></i> Update Homepage Banner & Paragraph Copy
+                </h3>
+                <form id="paragraphs-edit-form">
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Hero Welcome Headline Banner Text</label>
+                            <input type="text" value="Handpicked Luxury Fruit Configurations Delivered Right To Your Doorsteps" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Brand Secondary Pitch Narrative (Introductory Paragraph)</label>
+                            <textarea rows="4" required>We orchestrate custom selected seasonal arrangements sourced organically via certified community crop farmlands. Every unique configuration layout offers specialized premium freshness directly to family events, banquets, or personal gifting options.</textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-save">
+                        <i class="fa-solid fa-floppy-disk"></i> Apply Text Changes
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <script type="text/javascript">
+        // Section Switching Navigation Routing
+        function switchSection(sectionId, element) {
+            document.querySelectorAll('.editor-section').forEach(sec => sec.classList.remove('active-section'));
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            
+            document.getElementById(sectionId).classList.add('active-section');
+            element.classList.add('active');
+        }
+    </script>
+</body>
+</html>

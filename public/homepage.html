@@ -149,6 +149,34 @@
       </div>
     </div>
 
+    <!-- COMPLETE ORDER CONFIRMATION -->
+    <div id="completeOrderConfirmModal" class="fixed inset-0 z-[999998] hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div class="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200">
+            <div class="p-6 text-center">
+                <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600"><i class="fa-solid fa-circle-check text-xl"></i></div>
+                <h2 class="text-base font-bold text-slate-900">Mark order as completed?</h2>
+                <p class="mt-2 text-xs leading-relaxed text-slate-500">Order <span id="completeOrderNumber" class="font-bold text-slate-700"></span> will be moved out of the active orders list.</p>
+            </div>
+            <div class="flex gap-3 border-t border-slate-100 bg-slate-50 p-4">
+                <button onclick="closeCompleteOrderConfirmation()" class="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
+                <button onclick="confirmMarkOrderCompleted()" class="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"><i class="fa-solid fa-check mr-1"></i> Yes, complete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ORDER COMPLETED SUCCESS MESSAGE -->
+    <div id="completeOrderSuccessModal" class="fixed inset-0 z-[999999] hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+        <div class="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl border border-emerald-100">
+            <div class="p-7 text-center">
+                <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50"><i class="fa-solid fa-check text-3xl"></i></div>
+                <p class="text-[10px] font-bold uppercase tracking-[.18em] text-emerald-600">Order completed</p>
+                <h2 class="mt-2 text-lg font-bold text-slate-900">Order <span id="completedOrderNumber"></span> is marked as completed</h2>
+                <p class="mt-2 text-xs text-slate-500">The order has been removed from your active orders.</p>
+            </div>
+            <div class="border-t border-slate-100 bg-slate-50 p-4"><button onclick="closeCompleteOrderSuccess()" class="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700">OK</button></div>
+        </div>
+    </div>
+
     <!-- MOBILE OVERLAY BACKDROP -->
     <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-35 md:hidden hidden transition-opacity"></div>
 
@@ -165,7 +193,7 @@
             </div>
 
             <nav class="px-3 space-y-1">
-                <a href="createbill.html" onclick="toggleBillModal(); toggleSidebarMobileOnly(); return false;" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                <a href="createbill.html"  class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
                     <i class="fa-solid fa-calculator w-5 h-5 mr-3 text-blue-500 group-hover:text-blue-600"></i>
                     Billing
                 </a>
@@ -981,7 +1009,40 @@
             modal.classList.remove('flex');
         }
 
-        async function markOrderCompleted(orderId) {
+        let pendingCompletionOrderId = null;
+
+        function markOrderCompleted(orderId) {
+            pendingCompletionOrderId = orderId;
+            document.getElementById('completeOrderNumber').textContent = `#${orderId}`;
+            const modal = document.getElementById('completeOrderConfirmModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeCompleteOrderConfirmation() {
+            const modal = document.getElementById('completeOrderConfirmModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            pendingCompletionOrderId = null;
+        }
+
+        function showCompleteOrderSuccess(orderId) {
+            document.getElementById('completedOrderNumber').textContent = `#${orderId}`;
+            const modal = document.getElementById('completeOrderSuccessModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeCompleteOrderSuccess() {
+            const modal = document.getElementById('completeOrderSuccessModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function confirmMarkOrderCompleted() {
+            const orderId = pendingCompletionOrderId;
+            if (!orderId) return;
+
             try {
                 const response = await fetch(`/api/bills/${encodeURIComponent(orderId)}/status`, {
                     method: 'PATCH',
@@ -993,9 +1054,10 @@
                     throw new Error(result.error || 'Unable to update the order');
                 }
 
+                closeCompleteOrderConfirmation();
                 closeAssignedOrderDetails();
                 await fetchAndRenderData();
-                showCenterToast(`Order #${orderId} marked as completed successfully!`);
+                showCompleteOrderSuccess(orderId);
             } catch (error) {
                 console.error('Unable to complete order:', error);
                 alert('Could not mark this order as completed. Please try again.');

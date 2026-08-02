@@ -23,6 +23,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    /* Let Tailwind's text-xs/text-sm controls keep their intended compact sizes. */
+    .billing-workspace { font-size: 13px; }
     .receipt-dashed { border-top: 2px dashed #e2e8f0; }
     @media print { .no-print { display: none !important; } }
     input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -68,7 +70,7 @@
         #savedBillsList { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; padding: 1rem 0; }
         #savedBillsList tr { display: block; background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1rem; margin-bottom: 0.5rem; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         #savedBillsList td { display: block; text-align: left !important; padding: 0.25rem 0; border: none; }
-        #savedBillsList td:first-child { font-size: 1.1rem; border-bottom: 1px solid #f1f5f9; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
+        #savedBillsList td:first-child { font-size: 0.95rem; border-bottom: 1px solid #f1f5f9; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
         #savedBillsList td:last-child { position: absolute; top: 1rem; right: 1rem; }
         #savedBillsList td::before { content: attr(data-label); font-weight: 700; text-transform: uppercase; font-size: 0.65rem; color: #94a3b8; display: block; margin-bottom: 2px; }
         #savedBillsList td:last-child::before { display: none; }
@@ -126,8 +128,8 @@
     <a href="/createbill.html" class="rounded-lg bg-violet-50 text-violet-700 px-3 py-2">Billing</a><a href="homepage.html" class="rounded-lg bg-slate-50 px-3 py-2">Dashboard</a><a href="viewbills.html" class="rounded-lg bg-slate-50 px-3 py-2">Invoices</a><a href="todaysorders.html" class="rounded-lg bg-slate-50 px-3 py-2">Deliveries</a>
 </nav>
 
-  <main class="flex-1 overflow-y-auto max-w-[1600px] w-full mx-auto p-4 lg:p-8 space-y-6 lg:space-y-8">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+  <main class="billing-workspace flex-1 overflow-y-auto max-w-[1600px] w-full mx-auto p-4 lg:p-6 space-y-5 lg:space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6">
         <div class="lg:col-span-7 xl:col-span-8 space-y-6">
            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6">
                 <h3 class="text-sm font-bold text-violet-700 uppercase mb-4 flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-violet-100 text-violet-600 inline-flex items-center justify-center"><i class="fa-solid fa-user"></i></span>Customer & Delivery Details</h3>
@@ -144,18 +146,9 @@
                     </div>
 
                     <!-- Phone Number -->
-                    <div class="flex flex-col">
+                    <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Phone Number</label>
                         <input id="customerPhone" type="tel" placeholder="7006xxxxxx" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500">
-                        
-                        <div id="cancellationAlertBanner" class="mt-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-2 hidden flex items-center gap-2 shadow-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <p class="text-[10px] font-black uppercase tracking-wider text-rose-700 leading-tight">
-                                Alert: Last order was cancelled!
-                            </p>
-                        </div>
                     </div>
 
                     <!-- Customer Name -->
@@ -170,6 +163,12 @@
                         <input id="billNumber" type="text" readonly class="w-full bg-slate-100 border-none rounded-xl px-4 py-2 text-slate-500 font-mono">
                     </div>
 
+                    <!-- Saved customer address stays visible after a phone lookup. -->
+                    <div class="sm:col-span-2 lg:col-span-3">
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Customer Address</label>
+                        <input id="customerAddress" type="text" placeholder="ENTER FULL ADDRESS" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 uppercase">
+                    </div>
+
                     <!-- Delivery Conditional Fields Container -->
                     <div id="deliveryFieldsContainer" class="contents hidden">
                         <div>
@@ -180,10 +179,11 @@
                             <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Delivery Time</label>
                             <input id="deliveryTime" type="time" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500">
                         </div>
-                        <div class="sm:col-span-2 lg:col-span-3">
-                            <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Delivery Address</label>
-                            <input id="customerAddress" type="text" placeholder="ENTER FULL ADDRESS" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 uppercase">
-                        </div>
+                    </div>
+
+                    <div id="cancellationAlertBanner" class="sm:col-span-2 lg:col-span-3 hidden flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-rose-800 shadow-sm">
+                        <i class="fa-solid fa-circle-exclamation text-rose-600 text-xs shrink-0"></i>
+                        <p class="text-[10px] font-bold uppercase tracking-wide text-rose-700">Alert: this customer's last order was cancelled.</p>
                     </div>
 
                 </div>
@@ -213,9 +213,9 @@
                 <div id="pastOrdersCards" class="block md:hidden space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar"></div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 inline-flex items-center justify-center"><i class="fa-solid fa-basket-shopping text-xs"></i></span>Quick Menu</h2>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-5">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                    <h2 class="text-base font-bold text-slate-900 flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 inline-flex items-center justify-center"><i class="fa-solid fa-basket-shopping text-xs"></i></span>Quick Menu</h2>
                     <div class="flex flex-wrap gap-2 w-full sm:w-auto">
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
                             <input id="deliveryChargeAmount" type="number" placeholder="Fee" class="w-14 bg-white border-none rounded-md px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500" value="50">
@@ -234,10 +234,10 @@
 
         <div class="lg:col-span-5 xl:col-span-4">
             <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden sticky top-24">
-                <div class="bg-violet-700 text-white p-4 lg:p-6 text-center">
-                    <h2 class="font-bold tracking-widest text-xl uppercase">Receipt</h2>
+                <div class="bg-violet-700 text-white p-3.5 lg:p-4 text-center">
+                    <h2 class="font-bold tracking-widest text-lg uppercase">Receipt</h2>
                 </div>
-                <div class="p-4 lg:p-6">
+                <div class="p-4 lg:p-5">
                     <div id="billItemsContainer" class="space-y-4 min-h-[100px] max-h-[300px] overflow-y-auto custom-scrollbar">
                         <p class="text-center text-slate-400 py-10 uppercase font-bold">Your cart is empty</p>
                     </div>
@@ -254,7 +254,7 @@
                             <span>Advance Paid (₹)</span>
                             <input id="advance" type="number" value="0" oninput="calcTotals()" class="w-20 text-right bg-indigo-50 border-none rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500 font-bold">
                         </div>
-                        <div class="flex justify-between text-slate-900 text-xl font-bold pt-3 border-t">
+                        <div class="flex justify-between text-slate-900 text-lg font-bold pt-3 border-t">
                             <span id="balanceLabel" class="text-base uppercase">Balance Due</span>
                             <span class="text-indigo-600">₹<span id="total">0.00</span></span>
                         </div>
@@ -269,19 +269,19 @@
         </div>
     </div>
 
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6">
-        <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 inline-flex items-center justify-center"><i class="fa-solid fa-clock-rotate-left text-xs"></i></span>Recent Transactions</h2>
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-5">
+        <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 inline-flex items-center justify-center"><i class="fa-solid fa-clock-rotate-left text-xs"></i></span>Recent Transactions</h2>
         <div class="overflow-x-auto" style="min-height: 200px;">
             <table id="transactionsTable" class="w-full text-left border-collapse">
                 <thead>
                     <tr class="text-slate-400 text-xs uppercase font-bold border-b">
-                        <th class="px-4 py-4">Bill No</th>
-                        <th class="px-4 py-4">Customer</th>
-                        <th class="px-4 py-4">Delivery</th>
-                        <th class="px-4 py-4 text-right">Total</th>
-                        <th class="px-4 py-4 text-right">Advance</th>
-                        <th class="px-4 py-4 text-right">Balance</th>
-                        <th class="px-4 py-4 text-center">Actions</th>
+                        <th class="px-3 py-3">Bill No</th>
+                        <th class="px-3 py-3">Customer</th>
+                        <th class="px-3 py-3">Delivery</th>
+                        <th class="px-3 py-3 text-right">Total</th>
+                        <th class="px-3 py-3 text-right">Advance</th>
+                        <th class="px-3 py-3 text-right">Balance</th>
+                        <th class="px-3 py-3 text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="savedBillsList" class="text-sm divide-y divide-slate-50"></tbody>
@@ -459,10 +459,10 @@
             deliveryContainer.classList.remove('hidden');
         } else {
             deliveryContainer.classList.add('hidden');
-            // Clear conditional delivery inputs when hidden so they aren't accidentally saved
+            // Clear delivery scheduling inputs when delivery is not selected.
+            // Keep the customer address so a saved customer profile remains visible.
             document.getElementById('deliveryDate').value = "";
             document.getElementById('deliveryTime').value = "";
-            document.getElementById('customerAddress').value = "";
         }
     }
 
@@ -847,15 +847,15 @@ async function executeKnotTagPrint() {
                 const displayRowText = isCancelled ? 'line-through text-slate-400 opacity-75' : '';
 
                 return `<tr class="hover:bg-slate-50 border-b ${displayRowText}">
-                    <td data-label="Bill ID" class="px-4 py-4 font-mono font-bold text-indigo-600">${b.id}</td>
-                    <td data-label="Customer" class="px-4 py-4 font-medium uppercase truncate max-w-[100px]">${b.customer} ${isCancelled ? '<span class="text-[9px] font-black bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded tracking-wide ml-1">CANCELLED</span>' : ''}</td>
-                    <td data-label="Delivery" class="px-4 py-4 text-xs font-bold ${dateColor}">${formattedDelivery}</td>
+                    <td data-label="Bill ID" class="px-3 py-3 font-mono font-bold text-indigo-600">${b.id}</td>
+                    <td data-label="Customer" class="px-3 py-3 font-medium uppercase truncate max-w-[100px]">${b.customer} ${isCancelled ? '<span class="text-[9px] font-black bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded tracking-wide ml-1">CANCELLED</span>' : ''}</td>
+                    <td data-label="Delivery" class="px-3 py-3 text-xs font-bold ${dateColor}">${formattedDelivery}</td>
                     <td data-label="Subtotal" class="px-4 py-4 text-right">₹${b.subtotal}</td>
                     <td data-label="Advance" class="px-4 py-4 text-right font-bold text-indigo-600">₹${b.advance || 0}</td>
                     <td data-label="Balance Due" class="px-4 py-4 text-right font-black ${isCancelled ? 'text-slate-400' : balanceColor}">
                         ${isCancelled ? '₹0.00' : balanceText}
                     </td>
-                    <td class="px-4 py-4 text-center">
+                    <td class="px-3 py-3 text-center">
                         <div class="action-dropdown">
                             <button onclick="toggleDropdown(event, ${i})" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200">
                                 Action
@@ -1160,24 +1160,27 @@ if (currentSavedBills.length > 7) {
         if (phone.length !== 10) {
             pastOrdersBox.classList.add('hidden');
             alertBanner.classList.add('hidden');
+            rowsTarget.innerHTML = '';
+            cardsTarget.innerHTML = '';
             return;
         }
 
         try {
             const response = await fetch(`/api/customers/${phone}/history`);
-            if (response.ok) {
-                const data = await response.json(); 
-                
-                if (data.profile) {
-                    if (data.profile.name) {
-                        document.getElementById('customerName').value = data.profile.name.toUpperCase();
-                    }
-                    if (data.profile.address) {
-                        document.getElementById('customerAddress').value = data.profile.address.toUpperCase();
-                    }
-                }
+            if (!response.ok) throw new Error('Customer history could not be loaded');
 
-                if (data.history && data.history.length > 0) {
+            const data = await response.json();
+
+            if (data.profile) {
+                if (data.profile.name) {
+                    document.getElementById('customerName').value = data.profile.name.toUpperCase();
+                }
+                if (data.profile.address) {
+                    document.getElementById('customerAddress').value = data.profile.address.toUpperCase();
+                }
+            }
+
+            if (data.history && data.history.length > 0) {
                     const mostRecentOrder = data.history[0];
                     if (mostRecentOrder.orderStatus === 'cancelled') {
                         alertBanner.classList.remove('hidden');
@@ -1243,12 +1246,13 @@ if (currentSavedBills.length > 7) {
                     cardsTarget.innerHTML = cardsHTML;
                     
                     pastOrdersBox.classList.remove('hidden');
-                } else {
-                    pastOrdersBox.classList.add('hidden');
-                    alertBanner.classList.add('hidden');
-                }
+            } else {
+                pastOrdersBox.classList.add('hidden');
+                alertBanner.classList.add('hidden');
             }
         } catch (err) {
+            pastOrdersBox.classList.add('hidden');
+            alertBanner.classList.add('hidden');
             console.error("Failed to parse customer history stream:", err);
         }
     });

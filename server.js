@@ -600,7 +600,7 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/customers/:phone/history', async (req, res) => {
     try {
         const { phone } = req.params;
-        const orders = await Bill.find({ phone: phone }).sort({ date: -1 });
+        const orders = await Bill.find({ phone: phone }).sort({ date: -1, _id: -1 });
 
         let profile = { name: "", address: "" };
         if (orders.length > 0) {

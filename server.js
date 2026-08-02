@@ -36,6 +36,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'userhomepage.html'));
 });
 
+// Render runs on Linux, where filename case matters. Keep the billing URL
+// lowercase so navigation to /createbill.html works consistently everywhere.
+app.get('/createbill.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'Createbill.html'));
+});
+
 // 2. Staff URL to access the POS Login system
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));

@@ -386,13 +386,12 @@
                                 <thead>
                                     <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                         <th class="py-2.5 px-2">Partner</th>
-                                        <th class="py-2.5 px-2">Vehicle</th>
                                         <th class="py-2.5 px-2 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="deactivatedTableBody" class="divide-y divide-slate-100 text-xs text-slate-700">
                                     <tr>
-                                        <td colspan="3" class="py-6 text-center text-slate-400 font-medium text-[11px]">No deactivated partners.</td>
+                                        <td colspan="2" class="py-6 text-center text-slate-400 font-medium text-[11px]">No deactivated partners.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -402,7 +401,7 @@
                 </div>
 
                 <!-- REGISTERED RIDERS DATABASE LIST SECTION -->
-                <div class="bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden p-6 sm:p-8 w-full">
+                <div class="bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden p-6 sm:p-8 w-[calc(100%+1rem)] -ml-2 sm:w-[calc(100%+2rem)] sm:-ml-4">
                     <!-- Header with Title, Count badge and Filters -->
                     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
                         <div class="flex items-center gap-3.5">
@@ -509,8 +508,7 @@
                 const response = await fetch('/api/riders');
                 if (response.ok) {
                     cachedRiders = await response.json();
-                    renderRidersTable(cachedRiders.filter(rider => (rider.status || 'active').toLowerCase() === 'active'));
-                    renderDeactivatedRiders(cachedRiders);
+                    refreshRiderLists();
                 }
             } catch (error) {
                 console.error("Error fetching riders:", error);
@@ -526,7 +524,7 @@
             countBadge.textContent = deactivated.length;
 
             if (deactivated.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="py-6 text-center text-slate-400 font-medium text-[11px]">No deactivated partners.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="2" class="py-6 text-center text-slate-400 font-medium text-[11px]">No deactivated partners.</td></tr>`;
                 return;
             }
 
@@ -543,10 +541,12 @@
                     <td class="py-2.5 px-2">
                         <div class="flex items-center gap-2">
                             ${photoHtml}
-                            <span class="font-bold text-slate-900 truncate max-w-[90px]">${escapeHtml(rider.riderName)}</span>
+                            <div class="min-w-0">
+                                <span class="block font-bold text-rose-600 truncate max-w-[135px]">${escapeHtml(rider.riderName)}</span>
+                                <span class="block text-[9px] font-bold text-slate-400 mt-0.5">${escapeHtml(rider.riderCode || 'GH ID pending')}</span>
+                            </div>
                         </div>
                     </td>
-                    <td class="py-2.5 px-2 font-semibold text-rose-700 uppercase text-[10px]">${escapeHtml(rider.riderVehicle)}</td>
                     <td class="py-2.5 px-2 text-center">
                         <button onclick="viewRider('${riderId}')" class="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition" title="View">
                             <i class="fa-solid fa-eye text-xs"></i>
@@ -651,20 +651,26 @@
 
         async function deleteRider(id) {
             if (!confirm("Are you sure you want to delete this delivery partner?")) return;
+            const riderIndex = cachedRiders.findIndex(rider => String(rider._id || rider.id) === String(id));
+            if (riderIndex === -1) return;
+            const deletedRider = cachedRiders[riderIndex];
+            cachedRiders.splice(riderIndex, 1);
+            refreshRiderLists();
             try {
                 const response = await fetch(`/api/riders/${id}`, {
                     method: 'DELETE'
                 });
                 if (response.ok) {
                     showCenterToast("Rider Deleted Successfully");
-                    fetchRidersList();
                 } else {
                     const res = await response.json();
-                    alert(res.error || "Failed to delete rider.");
+                    throw new Error(res.error || "Failed to delete rider.");
                 }
             } catch (error) {
                 console.error("Error deleting rider:", error);
-                alert("An error occurred while deleting the rider.");
+                cachedRiders.splice(riderIndex, 0, deletedRider);
+                refreshRiderLists();
+                alert(error.message || "An error occurred while deleting the rider.");
             }
         }
 
@@ -708,6 +714,42 @@
             }
 
             document.getElementById('viewRiderModal').classList.remove('hidden');
+            loadRiderDeliveries(id);
+        }
+
+        async function loadRiderDeliveries(id) {
+            const ordersTbody = document.getElementById('modalOrdersTableBody');
+            ordersTbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400 font-medium">Loading delivered orders...</td></tr>`;
+            try {
+                const rider = cachedRiders.find(item => String(item._id || item.id) === String(id));
+                if (!rider) throw new Error('Rider details are no longer available.');
+                const response = await fetch('/api/bills');
+                if (!response.ok) throw new Error('Could not load delivery bills.');
+                const bills = await response.json();
+                const riderCode = String(rider.riderCode || '');
+                const orders = bills.filter(order => {
+                    const belongsToRider = String(order.riderId || '') === String(id) || (riderCode && String(order.riderCode || '') === riderCode);
+                    const status = String(order.Status || order.orderStatus || '').toLowerCase();
+                    return belongsToRider && (status === 'complete' || status === 'completed');
+                }).sort((a, b) => new Date(b.updatedAt || b.date || 0) - new Date(a.updatedAt || a.date || 0));
+                if (orders.length === 0) {
+                    ordersTbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400 font-medium">No completed deliveries for this rider yet.</td></tr>`;
+                    return;
+                }
+                ordersTbody.innerHTML = orders.map(order => {
+                    const time = new Date(order.updatedAt || order.date);
+                    const formattedTime = Number.isNaN(time.getTime()) ? 'N/A' : time.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+                    return `<tr class="bg-white">
+                        <td class="py-2 px-3 font-bold text-slate-900">#${escapeHtml(String(order.id || order._id || 'N/A'))}</td>
+                        <td class="py-2 px-3 text-slate-700">${escapeHtml(order.customer || 'Walk-in customer')}</td>
+                        <td class="py-2 px-3 font-semibold text-slate-900">₹${escapeHtml(Number(order.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }))}</td>
+                        <td class="py-2 px-3 text-slate-500">${escapeHtml(formattedTime)}</td>
+                    </tr>`;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading rider deliveries:', error);
+                ordersTbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-rose-500 font-medium">${escapeHtml(error.message || 'Could not load delivered orders.')}</td></tr>`;
+            }
         }
 
         function closeViewModal() {
@@ -722,6 +764,11 @@
         async function updateRiderStatus(id, status) {
             const action = status === 'inactive' ? 'deactivate' : 'reactivate';
             if (!confirm(`Are you sure you want to ${action} this delivery partner?`)) return;
+            const rider = cachedRiders.find(item => String(item._id || item.id) === String(id));
+            if (!rider) return;
+            const previousStatus = rider.status || 'active';
+            rider.status = status;
+            refreshRiderLists();
             try {
                 const response = await fetch(`/api/riders/${id}/status`, {
                     method: 'PATCH',
@@ -731,11 +778,17 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || `Failed to ${action} rider.`);
                 showCenterToast(status === 'inactive' ? 'Rider Deactivated Successfully' : 'Rider Reactivated Successfully');
-                fetchRidersList();
             } catch (error) {
                 console.error(`Error trying to ${action} rider:`, error);
+                rider.status = previousStatus;
+                refreshRiderLists();
                 alert(error.message || `Could not ${action} rider.`);
             }
+        }
+
+        function refreshRiderLists() {
+            filterRiders();
+            renderDeactivatedRiders(cachedRiders);
         }
 
         function compressRiderPhoto(file) {

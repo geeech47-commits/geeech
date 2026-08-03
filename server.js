@@ -511,6 +511,33 @@ app.get('/api/riders', async (req, res) => {
     }
 });
 
+// Completed bills assigned to one rider, used for that rider's delivery history.
+app.get('/api/riders/:id/deliveries', async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid rider ID.' });
+        }
+        const rider = await Rider.findById(req.params.id).select('riderCode').lean();
+        if (!rider) return res.status(404).json({ error: 'Rider not found.' });
+
+        const assignmentMatch = [{ riderId: rider._id }];
+        if (rider.riderCode) assignmentMatch.push({ riderCode: rider.riderCode });
+        const deliveries = await Bill.find({
+            $and: [
+                { $or: assignmentMatch },
+                { $or: [{ Status: /^completed?$/i }, { orderStatus: /^completed?$/i }] }
+            ]
+        })
+            .select('id customer total date updatedAt Status orderStatus')
+            .sort({ updatedAt: -1, date: -1 })
+            .lean();
+        res.json(deliveries);
+    } catch (err) {
+        console.error('Failed to fetch rider deliveries:', err);
+        res.status(500).json({ error: 'Failed to fetch rider deliveries.' });
+    }
+});
+
 // Activate or deactivate a rider without removing their delivery history.
 app.patch('/api/riders/:id/status', isAuthenticated, async (req, res) => {
     try {

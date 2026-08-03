@@ -65,6 +65,7 @@
 const urlParams = new URLSearchParams(window.location.search);
 const billId = urlParams.get('id');
 const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
 
 function formatDate(dateString) {
     const date = new Date(dateString);
@@ -184,6 +185,9 @@ async function fetchBill() {
         
         const isZomato = (b.customer || "").toLowerCase().includes("zomato");
         const sourceIcon = isZomato ? "https://upload.wikimedia.org/wikipedia/commons/7/75/Zomato_logo.png" : "https://via.placeholder.com/40";
+        const items = Array.isArray(b.items) ? b.items : [];
+        const orderStatus = b.Status || b.orderStatus || 'Active';
+        const deliveryAddress = b.address || b.deliveryAddress || b.custAddress || 'Not provided';
 
         document.getElementById('billContent').innerHTML = `
             <div class="space-y-4 lg:flex lg:flex-col">
@@ -191,11 +195,11 @@ async function fetchBill() {
                     <div class="flex items-center gap-3">
                         <img src="${sourceIcon}" class="w-10 h-10 rounded-xl object-contain bg-slate-50 p-1">
                         <div>
-                            <h2 class="font-bold text-slate-900 text-sm">${b.customer || "Walk-in"} Order</h2>
+                            <h2 class="font-bold text-slate-900 text-sm">${escapeHtml(b.customer || "Walk-in")} Order</h2>
                             <p class="text-[10px] text-slate-400 font-medium tracking-tight uppercase">#${b.id}</p>
                         </div>
                     </div>
-                    <span class="px-2 py-1 rounded-lg bg-green-50 text-green-600 text-[9px] font-black uppercase tracking-wider">Paid</span>
+                    <span class="px-2 py-1 rounded-lg bg-green-50 text-green-600 text-[9px] font-black uppercase tracking-wider">${escapeHtml(orderStatus)}</span>
                 </div>
 
                 <div class="bg-white rounded-[1.5rem] border border-slate-100 grid grid-cols-2 divide-x divide-slate-50 shadow-sm">
@@ -211,11 +215,17 @@ async function fetchBill() {
 
                 <div class="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm flex-1">
                     <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Customer Info</h3>
-                    <div class="grid grid-cols-2 gap-y-4">
-                        <div><p class="text-[9px] text-slate-400">Name</p><p class="text-xs font-bold text-slate-900">${b.customer || "Walk-in"}</p></div>
-                        <div><p class="text-[9px] text-slate-400">Order ID</p><p class="text-xs font-bold text-slate-900">${b.id}</p></div>
-                        <div><p class="text-[9px] text-slate-400">Payment</p><p class="text-xs font-bold text-slate-900">${isZomato ? 'Zomato' : 'Cash'}</p></div>
-                        <div><p class="text-[9px] text-slate-400">Status</p><p class="text-xs font-bold text-green-600">Paid ✓</p></div>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-4">
+                        <div><p class="text-[9px] text-slate-400">Name</p><p class="text-xs font-bold text-slate-900">${escapeHtml(b.customer || "Walk-in")}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Order ID</p><p class="text-xs font-bold text-slate-900">${escapeHtml(b.id || '—')}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Phone No.</p><p class="text-xs font-bold text-slate-900">${escapeHtml(b.phone || 'Not provided')}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Order Type</p><p class="text-xs font-bold capitalize text-slate-900">${escapeHtml(b.orderType || 'Dine-in')}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Order Source</p><p class="text-xs font-bold text-slate-900">${escapeHtml(b.orderSource || (isZomato ? 'Zomato' : 'Offline'))}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Status</p><p class="text-xs font-bold capitalize text-green-600">${escapeHtml(orderStatus)}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Delivery Date</p><p class="text-xs font-bold text-slate-900">${escapeHtml(b.deliveryDate ? formatDateDDMMYYYY(b.deliveryDate) : 'Not scheduled')}</p></div>
+                        <div><p class="text-[9px] text-slate-400">Delivery Time</p><p class="text-xs font-bold text-slate-900">${escapeHtml(b.deliveryTime ? formatTime12H(b.deliveryTime) : 'Not scheduled')}</p></div>
+                        <div class="col-span-2"><p class="text-[9px] text-slate-400">Delivery Address</p><p class="text-xs font-bold leading-relaxed text-slate-900">${escapeHtml(deliveryAddress)}</p></div>
+                        ${b.riderAssigned ? `<div class="col-span-2"><p class="text-[9px] text-slate-400">Assigned Delivery Partner</p><p class="text-xs font-bold text-violet-700">${escapeHtml(b.riderAssigned)}${b.riderCode ? ` · ${escapeHtml(b.riderCode)}` : ''}</p></div>` : ''}
                     </div>
                     
                 </div>
@@ -224,19 +234,20 @@ async function fetchBill() {
             <div class="mt-4 lg:mt-0 bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col lg:h-full lg:overflow-hidden">
                 <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Bill Items</h3>
                 <div class="items-scroll flex-1 overflow-y-auto pr-2 space-y-4">
-                    ${b.items.map((item, index) => `
+                    ${items.length ? items.map((item, index) => `
                     <div class="flex justify-between items-start">
                         <div>
-                            <p class="text-xs font-bold text-slate-900">${index + 1}. ${item.name}</p>
-                            <p class="text-[9px] text-slate-400">${item.qty} x ₹${fmt(item.price)}</p>
+                            <p class="text-xs font-bold text-slate-900">${index + 1}. ${escapeHtml(item.name || item.itemName || 'Item')}</p>
+                            <p class="text-[9px] text-slate-400">${item.qty || item.quantity || 1} x ₹${fmt(item.price)}</p>
                         </div>
-                        <p class="text-xs font-bold text-slate-900">₹${fmt(item.qty * item.price)}</p>
-                    </div>`).join('')}
+                        <p class="text-xs font-bold text-slate-900">₹${fmt((item.qty || item.quantity || 1) * item.price)}</p>
+                    </div>`).join('') : '<p class="py-6 text-center text-xs text-slate-400">No item details available.</p>'}
                 </div>
                 
                 <div class="border-t border-dashed border-slate-100 pt-4 mt-4 space-y-2">
-                    <div class="flex justify-between text-xs font-bold"><span class="text-slate-400">Subtotal</span><span class="text-slate-900">₹${fmt(b.total)}</span></div>
-                    <div class="flex justify-between text-xs font-bold"><span class="text-slate-400">Discount</span><span class="text-red-500">- ₹0.00</span></div>
+                    <div class="flex justify-between text-xs font-bold"><span class="text-slate-400">Subtotal</span><span class="text-slate-900">₹${fmt(b.subtotal || b.total)}</span></div>
+                    <div class="flex justify-between text-xs font-bold"><span class="text-slate-400">Discount</span><span class="text-red-500">- ₹${fmt(b.discount)}</span></div>
+                    <div class="flex justify-between text-xs font-bold"><span class="text-slate-400">Advance Paid</span><span class="text-slate-900">₹${fmt(b.advance)}</span></div>
                     <div class="flex justify-between pt-2 border-t mt-2"><span class="text-xs font-black text-slate-900 uppercase">Grand Total</span><span class="text-lg font-black text-green-600">₹${fmt(b.total)}</span></div>
                 </div>
             </div>

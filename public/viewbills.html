@@ -56,9 +56,11 @@
       border-bottom: 1px solid #e2e8f0;
     }
 
-    .table-shell { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
-    .invoice-action { position: relative; display: inline-block; }
-    .invoice-action-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; width: 150px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; border-radius: .75rem; box-shadow: 0 12px 24px rgba(15,23,42,.12); }
+    .table-shell { overflow: visible !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+    .invoice-action { position: relative; z-index: 1; display: inline-block; }
+    .invoice-action:has(.show) { z-index: 100; }
+    .invoice-row.menu-open { position: relative; z-index: 100; }
+    .invoice-action-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 9999; width: 150px; overflow: hidden; opacity: 1; pointer-events: auto; background: #fff !important; border: 1px solid #e2e8f0; border-radius: .75rem; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
     .invoice-action-menu.show { display: block; }
     .action-option { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .75rem .9rem; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; transition: background .15s ease; }
 
@@ -687,13 +689,20 @@ function toggleInvoiceAction(event, index) {
     event.stopPropagation();
     const menu = document.getElementById(`invoice-action-${index}`);
     document.querySelectorAll('.invoice-action-menu').forEach(item => {
-        if (item !== menu) item.classList.remove('show');
+        if (item !== menu) {
+            item.classList.remove('show');
+            item.closest('.invoice-row')?.classList.remove('menu-open');
+        }
     });
     menu.classList.toggle('show');
+    menu.closest('.invoice-row')?.classList.toggle('menu-open', menu.classList.contains('show'));
 }
 
 function closeInvoiceActions() {
-    document.querySelectorAll('.invoice-action-menu').forEach(item => item.classList.remove('show'));
+    document.querySelectorAll('.invoice-action-menu').forEach(item => {
+        item.classList.remove('show');
+        item.closest('.invoice-row')?.classList.remove('menu-open');
+    });
 }
 
 function editOrPayBill(index) {
@@ -705,13 +714,153 @@ function editOrPayBill(index) {
 function printInvoice(index) {
     const bill = allBills[index];
     if (!bill) return;
-    const rows = (bill.items || []).map(item => `<div class="row"><span>${item.name} × ${item.quantity}</span><strong>₹${fmt(Number(item.price || 0) * Number(item.quantity || 0))}</strong></div>`).join('');
-    const printWindow = window.open('', '', 'width=380,height=640');
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+    const formatThermalDate = (value) => {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('en-GB');
+    };
+    const formatThermalTime = (value) => {
+        if (!value) return '';
+        const [hours, minutes] = String(value).split(':');
+        if (minutes === undefined || Number.isNaN(Number(hours))) return String(value);
+        const hour = Number(hours);
+        return `${hour % 12 || 12}:${minutes} ${hour >= 12 ? 'PM' : 'AM'}`;
+    };
+    const rows = (bill.items || []).map(item => `
+        <div style="display:flex;">
+          <div style="width:50%; text-transform: uppercase;">${escapeHtml(item.name)} x${escapeHtml(item.quantity)}</div>
+          <div style="width:20%; text-align:center;">${escapeHtml(item.quantity)}</div>
+          <div style="width:30%; text-align:right;">&#8377;${fmt(Number(item.price || 0) * Number(item.quantity || 0))}</div>
+        </div>`).join('');
+    const printWindow = window.open('', '', 'width=58mm,height=auto');
     if (!printWindow) return;
-    printWindow.document.write(`<html><head><title>Invoice ${bill.id}</title><style>body{font-family:Arial,sans-serif;padding:18px;color:#111}h2,p{margin:0 0 8px}.muted{color:#64748b;font-size:12px}.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed #cbd5e1;font-size:12px}.total{font-size:16px;padding-top:12px}</style></head><body><h2>Athwas Retail</h2><p class="muted">Invoice #${bill.id}</p><p class="muted">${bill.customer || 'WALK-IN'} · ${formatDisplayDate(bill.date)}</p><hr>${rows}<div class="row total"><strong>Balance Due</strong><strong>₹${fmt(bill.total)}</strong></div></body></html>`);
+    printWindow.document.write(`
+      <html><head><title>Invoice ${escapeHtml(bill.id)}</title>
+      <style>@page { margin: 0; } @media print { body { margin: 0; background: #fff !important; } }</style></head><body>
+      <div style="width:58mm; padding:6px 6px 10px; font-family:monospace; font-size:12px; color:#000; background:#fff;">
+        <div style="text-align:center; background:#fff;"><img id="receiptLogo" src="${window.location.origin}/logo.jpeg" alt="Fruit'z" style="display:block; width:50mm; height:auto; margin:0 auto; background:#fff;"></div>
+        <div style="text-align:center; font-size:11px; font-style:italic;">For Your Wellbeing</div>
+        <div style="text-align:center; font-size:11px;">FSSIC NO : 24552365210253</div>
+        <div style="text-align:center; font-size:11px;">Batamaloo, Srinagar</div>
+        <div style="text-align:center; font-size:11px; font-weight:bold;">7006149827, 7889762496</div>
+        <hr style="border:1px solid #000; margin:6px 0;">
+        <div style="font-weight:bold;">BILL: ${escapeHtml(bill.id)}</div>
+        <div>DATE: ${formatThermalDate(bill.date)}</div>
+        <div style="text-transform:uppercase;">CUSTOMER: ${escapeHtml(bill.customer || 'WALK-IN')}</div>
+        <div>PHONE: ${escapeHtml(bill.phone || 'N/A')}</div>
+        ${bill.address ? `<div style="text-transform:uppercase;">ADDRESS: ${escapeHtml(bill.address)}</div>` : ''}
+        ${bill.deliveryDate ? `<div style="font-weight:bold;">DELIVERY DATE: ${formatThermalDate(bill.deliveryDate)}</div>` : ''}
+        ${bill.deliveryTime ? `<div style="font-weight:bold;">DELIVERY TIME: ${formatThermalTime(bill.deliveryTime)}</div>` : ''}
+        <hr style="border:1px solid #000; margin:8px 0;">
+        <div style="display:flex; font-weight:bold;"><div style="width:50%;">Item</div><div style="width:20%; text-align:center;">Qty</div><div style="width:30%; text-align:right;">Price</div></div>
+        <div style="margin-top:4px;">${rows}</div>
+        <hr style="border:1px solid #000; margin:6px 0;">
+        <div style="text-align:right;">Subtotal: &#8377;${fmt(bill.subtotal || 0)}</div>
+        <div style="text-align:right;">Discount: &#8377;${fmt(bill.discount || 0)}</div>
+        <div style="text-align:right; font-weight:bold;">Advance Paid: &#8377;${fmt(bill.advance || 0)}</div>
+        <div style="text-align:right; font-weight:900; font-size:14px; margin-top:2px;">Balance: &#8377;${fmt(bill.total || 0)}</div>
+        <hr style="border:1px solid #000; margin:6px 0;">
+        <div style="text-align:center; font-size:8px; font-weight:700; margin-bottom:4px;">Also on swiggy | zomato</div>
+        <div style="text-align:center; font-size:10px; font-style:italic; border-top:1px dotted #000; padding-top:4px;">powdered by Fruit'z billing software</div>
+      </div></body></html>`);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => printWindow.print(), 300);
+    // Do not close the receipt window until the browser has finished printing.
+    // Closing it immediately is what causes intermittent blank/black output and preview failures.
+    printWindow.onafterprint = () => printWindow.close();
+    const receiptLogo = printWindow.document.getElementById('receiptLogo');
+    let printStarted = false;
+    const startPrint = () => {
+        if (printStarted) return;
+        printStarted = true;
+        setTimeout(() => printWindow.print(), 250);
+    };
+    if (receiptLogo && !receiptLogo.complete) {
+        receiptLogo.addEventListener('load', startPrint, { once: true });
+        receiptLogo.addEventListener('error', startPrint, { once: true });
+        setTimeout(startPrint, 2000);
+    } else {
+        startPrint();
+    }
+}
+
+async function downloadInvoice(index) {
+    const bill = allBills[index];
+    if (!bill) return;
+    if (!window.jspdf) {
+        alert('The receipt download service is not available. Please try again.');
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [58, 200] });
+    const pageWidth = 58;
+    let y = 6;
+    const line = () => { doc.setDrawColor(0); doc.line(4, y, 54, y); y += 3; };
+    const money = (value) => `Rs. ${fmt(value || 0)}`;
+    const date = new Date(bill.date);
+    const receiptDate = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString('en-GB');
+    const deliveryDate = bill.deliveryDate ? new Date(bill.deliveryDate).toLocaleDateString('en-GB') : '';
+
+    try {
+        const logo = await new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = reject;
+            image.src = `${window.location.origin}/logo.jpeg`;
+        });
+        doc.addImage(logo, 'JPEG', 8, y, 42, 14);
+        y += 16;
+    } catch (_) {
+        doc.setFont('courier', 'bold');
+        doc.setFontSize(16);
+        doc.text("FRUIT'Z", pageWidth / 2, y + 5, { align: 'center' });
+        y += 8;
+    }
+
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(7);
+    doc.text('For Your Wellbeing', pageWidth / 2, y, { align: 'center' }); y += 3;
+    doc.text('FSSIC NO : 24552365210253', pageWidth / 2, y, { align: 'center' }); y += 3;
+    doc.text('Batamaloo, Srinagar', pageWidth / 2, y, { align: 'center' }); y += 3;
+    doc.setFont('courier', 'bold');
+    doc.text('7006149827, 7889762496', pageWidth / 2, y, { align: 'center' }); y += 3;
+    line();
+    doc.setFontSize(8);
+    doc.text(`BILL: ${String(bill.id)}`, 4, y); y += 4;
+    doc.setFont('courier', 'normal');
+    doc.text(`DATE: ${receiptDate}`, 4, y); y += 4;
+    doc.text(`CUSTOMER: ${String(bill.customer || 'WALK-IN').toUpperCase()}`, 4, y); y += 4;
+    doc.text(`PHONE: ${String(bill.phone || 'N/A')}`, 4, y); y += 4;
+    if (bill.address) { doc.text(doc.splitTextToSize(`ADDRESS: ${String(bill.address).toUpperCase()}`, 50), 4, y); y += 8; }
+    if (bill.deliveryDate) { doc.setFont('courier', 'bold'); doc.text(`DELIVERY DATE: ${deliveryDate}`, 4, y); y += 4; }
+    if (bill.deliveryTime) { doc.text(`DELIVERY TIME: ${bill.deliveryTime}`, 4, y); y += 4; }
+    line();
+    doc.text('Item', 4, y); doc.text('Qty', 36, y, { align: 'center' }); doc.text('Price', 54, y, { align: 'right' }); y += 4;
+    doc.setFont('courier', 'normal');
+    (bill.items || []).forEach(item => {
+        const itemName = `${String(item.name || '').toUpperCase()} x${item.quantity || 0}`;
+        doc.text(doc.splitTextToSize(itemName, 30), 4, y);
+        doc.text(String(item.quantity || 0), 36, y, { align: 'center' });
+        doc.text(money(Number(item.price || 0) * Number(item.quantity || 0)), 54, y, { align: 'right' });
+        y += Math.max(4, doc.splitTextToSize(itemName, 30).length * 4);
+    });
+    line();
+    doc.text(`Subtotal: ${money(bill.subtotal)}`, 54, y, { align: 'right' }); y += 4;
+    doc.text(`Discount: ${money(bill.discount)}`, 54, y, { align: 'right' }); y += 4;
+    doc.setFont('courier', 'bold');
+    doc.text(`Advance Paid: ${money(bill.advance)}`, 54, y, { align: 'right' }); y += 4;
+    doc.setFontSize(10);
+    doc.text(`Balance: ${money(bill.total)}`, 54, y, { align: 'right' }); y += 5;
+    line();
+    doc.setFontSize(6);
+    doc.text('Also on swiggy | zomato', pageWidth / 2, y, { align: 'center' }); y += 3;
+    doc.setFont('courier', 'normal');
+    doc.text("powdered by Fruit'z billing software", pageWidth / 2, y, { align: 'center' });
+    doc.save(`FruitZ-Bill-${bill.id}.pdf`);
 }
 
 async function deleteInvoice(index) {
@@ -910,9 +1059,11 @@ async function loadSavedBills() {
               <div class="invoice-action">
                 <button onclick="toggleInvoiceAction(event, ${globalIndex})" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center" title="Actions"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
                 <div id="invoice-action-${globalIndex}" class="invoice-action-menu">
+                  <button onclick="closeInvoiceActions();editOrPayBill(${globalIndex})" class="action-option text-violet-600 hover:bg-violet-50"><i class="fa-solid fa-eye"></i> View Bill</button>
                   <button onclick="closeInvoiceActions();showAmountBreakdown(${globalIndex})" class="action-option text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-circle-info text-violet-500"></i> Details</button>
                   <button onclick="closeInvoiceActions();editOrPayBill(${globalIndex})" class="action-option text-violet-600 hover:bg-slate-50"><i class="fa-solid fa-pen-to-square"></i> Edit / Pay</button>
                   <button onclick="closeInvoiceActions();printInvoice(${globalIndex})" class="action-option text-emerald-600 hover:bg-emerald-50"><i class="fa-solid fa-print"></i> Print</button>
+                  <button onclick="closeInvoiceActions();downloadInvoice(${globalIndex})" class="action-option text-blue-600 hover:bg-blue-50"><i class="fa-solid fa-download"></i> Download Receipt</button>
                   <button onclick="closeInvoiceActions();deleteInvoice(${globalIndex})" class="action-option text-rose-600 hover:bg-rose-50 border-t border-slate-100"><i class="fa-solid fa-trash"></i> Delete</button>
                 </div>
               </div>

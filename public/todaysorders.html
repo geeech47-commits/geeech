@@ -1,176 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gee-Ech | Completed Deliveries</title>
+  <script>
     async function checkAuth() {
-        try {
-            const response = await fetch('/api/current-user');
-            if (!response.ok) window.location.href = "login.html";
-        } catch (err) { window.location.href = "login.html"; }
+      try { if (!(await fetch('/api/current-user')).ok) window.location.href = 'login.html'; }
+      catch (_) { window.location.href = 'login.html'; }
     }
     checkAuth();
-    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
-    <title>Fruit’z | Today's Dispatch</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #ffffff; -webkit-tap-highlight-color: transparent; }
-        .date-separator { background-color: #f8fafc; color: #1d4ed8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 20px; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; }
-        .table-row-hover:hover { background-color: #fcfcfc; cursor: pointer; }
-        @media print { .no-print { display: none !important; } }
-    </style>
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .menu-icon-btn { width:42px; height:42px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; padding:0; background:#f8fafc; border:1px solid #e2e8f0; border-radius:.75rem; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+    .menu-icon-btn:hover { background:#f1f5f9; border-color:#cbd5e1; }
+    .menu-icon-line { width:20px; height:3px; display:block; border-radius:999px; background:#7c3aed; }
+    .top-slide-container { position:relative; }
+    .top-slide-menu { display:none; position:absolute; top:calc(100% + 10px); right:0; width:190px; z-index:50; background:#fff; border:1px solid #e2e8f0; border-radius:.75rem; box-shadow:0 20px 30px -10px rgba(15,23,42,.25); }
+    .top-slide-menu.show { display:block; }
+    .action-option { display:flex; align-items:center; gap:.65rem; width:100%; padding:.75rem .9rem; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; text-align:left; }
+  </style>
 </head>
-<body class="bg-white">
+<body class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden" onclick="closeTopMenu(event)">
+  <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 z-30 hidden bg-slate-900/50 md:hidden"></div>
 
-<div class="max-w-6xl mx-auto no-print pb-24">
-    <header class="flex items-center justify-between p-6 md:px-0">
-        <div class="flex items-center gap-4">
-            <button onclick="window.history.back()" class="text-slate-900">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-            </button>
-            <h1 class="text-lg md:text-2xl font-extrabold text-slate-900">Today's Dispatches</h1>
-        </div>
-        <div class="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-xl">
-            <span id="orderCount" class="text-blue-600 font-black text-sm">0 Orders Scheduled</span>
-        </div>
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex h-full w-64 -translate-x-full flex-col justify-between border-r border-slate-200 bg-white text-slate-700 transition-transform duration-300 md:static md:translate-x-0">
+    <div class="flex-1 overflow-y-auto">
+      <div class="relative pt-6"><button onclick="toggleSidebar()" class="absolute right-3 top-4 p-1 text-slate-400 md:hidden"><i class="fa-solid fa-xmark text-xl"></i></button><div class="flex justify-center pb-5"><img src="logo.jpeg" alt="Gee-Ech logo" class="w-40"></div></div>
+      <nav class="space-y-1 px-3">
+        <a href="createbill.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-calculator mr-3 w-5 text-blue-500"></i>Billing</a>
+        <a href="punchorder.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-basket-shopping mr-3 w-5 text-indigo-500"></i>Punch Online</a>
+        <a href="viewbills.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-file-invoice-dollar mr-3 w-5 text-emerald-500"></i>Invoices</a>
+        <a href="todaysorders.html" class="flex items-center rounded-xl bg-violet-50 px-4 py-2.5 font-semibold text-violet-700"><i class="fa-solid fa-truck-fast mr-3 w-5 text-amber-500"></i>Deliveries</a>
+        <a href="editmenu.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-boxes-stacked mr-3 w-5 text-purple-500"></i>Stock</a>
+        <a href="edithomepage.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-house mr-3 w-5 text-teal-500"></i>User Homepage</a>
+      </nav>
+    </div>
+    <div class="m-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-200 bg-violet-100 text-violet-700"><i class="fa-solid fa-user text-xs"></i></div><div><p class="text-xs font-bold text-slate-800">Delivery Desk</p><span class="text-[9px] font-bold uppercase text-violet-700">Operations</span></div></div>
+  </aside>
+
+  <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <header class="z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3.5 shadow-sm sm:px-8">
+      <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="p-1 text-slate-600 hover:text-violet-600 md:hidden" aria-label="Toggle menu"><i class="fa-solid fa-bars text-xl"></i></button><div><p class="text-[10px] font-bold uppercase tracking-[.16em] text-violet-600">Operations & Delivery</p><h1 class="text-base font-bold text-slate-900">Completed Deliveries</h1></div></div>
+      <div class="flex items-center gap-3"><span id="orderCount" class="hidden rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 sm:block">0 Completed</span><div class="top-slide-container"><button id="menuToggleBtn" onclick="toggleTopMenu(event)" class="menu-icon-btn" aria-label="Open options"><span class="menu-icon-line"></span><span class="menu-icon-line"></span><span class="menu-icon-line"></span></button><div id="topSlideMenu" class="top-slide-menu p-1.5"><a href="homepage.html" class="action-option rounded-lg text-slate-700 hover:bg-violet-50 hover:text-violet-700"><i class="fa-solid fa-chart-pie w-4 text-violet-600"></i>Dashboard</a><button onclick="window.location.reload()" class="action-option rounded-lg text-slate-700 hover:bg-violet-50 hover:text-violet-700"><i class="fa-solid fa-rotate w-4 text-violet-600"></i>Refresh Data</button></div></div></div>
     </header>
 
-    <div id="mobileListView" class="md:hidden divide-y divide-slate-50">
-        </div>
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div class="mx-auto max-w-7xl">
+        <div class="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><h2 class="text-lg font-bold text-slate-900">Delivered orders</h2><p class="mt-1 text-[11px] text-slate-500">Only orders assigned to a delivery partner and marked complete are shown here.</p></div><span id="mobileOrderCount" class="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700 sm:hidden">0 Completed</span></div>
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="overflow-x-auto"><table class="min-w-[1020px] w-full text-left"><thead class="border-b border-slate-200 bg-slate-50 text-[9px] font-bold uppercase tracking-wider text-slate-400"><tr><th class="px-4 py-3">Order ID</th><th class="px-4 py-3">Name</th><th class="px-4 py-3">Phone No.</th><th class="px-4 py-3">Address</th><th class="px-4 py-3">Assigned delivery partner</th><th class="px-4 py-3 text-right">Total bill amount</th><th class="px-4 py-3 text-right">Option</th></tr></thead><tbody id="ordersTable" class="divide-y divide-slate-100"></tbody></table></div></div>
+      </div>
+    </main>
+  </div>
 
-    <div class="hidden md:block overflow-hidden border border-slate-100 rounded-3xl shadow-sm">
-        <table class="w-full text-left">
-            <thead class="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                <tr>
-                    <th class="px-8 py-5">Source</th>
-                    <th class="px-8 py-5">Order ID</th>
-                    <th class="px-8 py-5">Customer / Address</th>
-                    <th class="px-8 py-5">Delivery Date</th>
-                    <th class="px-8 py-5">Time Slot</th>
-                    <th class="px-8 py-5 text-right">Total</th>
-                    <th class="px-8 py-5 text-center">Action</th>
-                </tr>
-            </thead>
-            <tbody id="laptopTableBody" class="divide-y divide-slate-50">
-                </tbody>
-        </table>
-    </div>
-</div>
+  <div id="detailsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/40 p-4"><div class="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"><div class="flex items-center justify-between border-b border-slate-100 p-5"><div><p class="text-[10px] font-bold uppercase tracking-widest text-violet-600">Order details</p><h2 id="modalOrderId" class="mt-1 text-base font-bold text-slate-900"></h2></div><button onclick="closeDetails()" class="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-800" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5"><div id="modalItems" class="space-y-3"></div><div class="mt-5 flex items-center justify-between border-t border-slate-200 pt-4"><span class="text-xs font-bold uppercase tracking-wider text-slate-500">Total amount</span><span id="modalTotal" class="text-lg font-bold text-violet-700"></span></div></div></div></div>
 
-<div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-8 py-3 flex justify-between items-center no-print">
-    <div class="flex flex-col items-center gap-1 text-slate-300" onclick="window.location.href='homepage.html'">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-        <span class="text-[10px] font-bold uppercase tracking-tighter">Dashboard</span>
-    </div>
-    <div class="flex flex-col items-center gap-1 text-blue-600">
-        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/><path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-        <span class="text-[10px] font-bold uppercase tracking-tighter">Orders</span>
-    </div>
-    <div class="flex flex-col items-center gap-1 text-slate-300" onclick="window.location.href='viewbills.html'">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012-2"></path></svg>
-        <span class="text-[10px] font-bold uppercase tracking-tighter">History</span>
-    </div>
-</div>
+  <script>
+    let completedOrders = [];
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+    const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-<script>
-let currentOrders = [];
-const fmt = (n) => parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebarOverlay').classList.toggle('hidden'); }
+    function toggleTopMenu(event) { event.stopPropagation(); document.getElementById('topSlideMenu').classList.toggle('show'); }
+    function closeTopMenu(event) { const menu = document.getElementById('topSlideMenu'); const button = document.getElementById('menuToggleBtn'); if (menu.classList.contains('show') && !menu.contains(event.target) && !button.contains(event.target)) menu.classList.remove('show'); }
+    function closeDetails() { document.getElementById('detailsModal').classList.replace('flex', 'hidden'); }
 
-// Formats systemic date objects safely back to standard DD-MM-YYYY
-function formatDateDMY(dateObj) {
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
-}
+    function showDetails(index) {
+      const order = completedOrders[index];
+      document.getElementById('modalOrderId').textContent = `Order #${order.id || order._id || '—'}`;
+      const items = Array.isArray(order.items) ? order.items : [];
+      document.getElementById('modalItems').innerHTML = items.length ? items.map(item => {
+        const quantity = Number(item.quantity ?? item.qty ?? 1);
+        const price = Number(item.price ?? item.rate ?? 0);
+        const label = item.name || item.itemName || item.title || 'Item';
+        return `<div class="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3"><div><p class="text-sm font-semibold text-slate-800">${escapeHtml(label)}</p><p class="mt-0.5 text-xs text-slate-500">Qty: ${quantity}</p></div><span class="text-sm font-bold text-slate-700">${money(price * quantity)}</span></div>`;
+      }).join('') : '<p class="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">No item details available.</p>';
+      document.getElementById('modalTotal').textContent = money(order.total);
+      document.getElementById('detailsModal').classList.replace('hidden', 'flex');
+    }
 
-async function loadOrders() {
-    const mobileCont = document.getElementById('mobileListView');
-    const laptopCont = document.getElementById('laptopTableBody');
-    
-    try {
-        const res = await fetch('/api/bills');
-        const allData = await res.json();
-        
-        // Target localized timestamp components for clean day isolation
-        const todayObj = new Date();
-        const localTodayStr = todayObj.toDateString(); 
-
-        // Filter: only orders specifically scheduled for today
-        currentOrders = allData.filter(o => {
-            if (!o.deliveryDate) return false;
-            const orderDateObj = new Date(o.deliveryDate);
-            return orderDateObj.toDateString() === localTodayStr;
-        });
-
-        // Sort: Chronologically by time slot or backend timestamps if needed
-        currentOrders.sort((a, b) => (a.deliveryTime || '').localeCompare(b.deliveryTime || ''));
-
-        document.getElementById('orderCount').textContent = `${currentOrders.length} Orders Today`;
-        mobileCont.innerHTML = '';
-        laptopCont.innerHTML = '';
-
-        if (currentOrders.length === 0) {
-            const noOrdersMarkup = `
-                <div class="p-12 text-center text-slate-400 font-medium text-sm">
-                    No dispatches scheduled for today.
-                </div>`;
-            mobileCont.innerHTML = noOrdersMarkup;
-            laptopCont.innerHTML = `<tr><td colspan="7">${noOrdersMarkup}</td></tr>`;
-            return;
-        }
-
-        // Set Blue dynamic header color tracking for Today
-        mobileCont.innerHTML += `<div class="date-separator flex items-center justify-between"><span>TODAY'S DISPATCHES</span> <span>${formatDateDMY(todayObj)}</span></div>`;
-
-        currentOrders.forEach(o => {
-            const isZomato = (o.customer || "").toLowerCase().includes("zomato");
-            const iconUrl = isZomato ? "https://upload.wikimedia.org/wikipedia/commons/7/75/Zomato_logo.png" : "https://via.placeholder.com/40";
-            const timeStr = o.deliveryTime || "ASAP";
-            const cleanDateStr = formatDateDMY(new Date(o.deliveryDate));
-
-            // 1. Mobile List Insertion
-            mobileCont.innerHTML += `
-                <div onclick="window.location.href='viewdetailedbill.html?id=${o.id}'" class="flex items-center justify-between p-5 bg-white border-b border-slate-50">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100">
-                            <img src="${iconUrl}" class="w-7 ${isZomato ? '' : 'opacity-40'}">
-                        </div>
-                        <div>
-                            <div class="font-extrabold text-slate-900 text-sm leading-tight uppercase">${o.customer}</div>
-                            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">#${o.id} • <span class="text-blue-600">${timeStr}</span></div>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="font-black text-blue-600 text-sm">₹${fmt(o.total)}</div>
-                    </div>
-                </div>`;
-
-            // 2. Laptop Table Insertion
-            laptopCont.innerHTML += `
-                <tr class="table-row-hover group" onclick="window.location.href='viewdetailedbill.html?id=${o.id}'">
-                    <td class="px-8 py-5 text-[11px] font-bold text-slate-400 uppercase tracking-widest">${isZomato ? '🛵 Zomato' : '👤 Direct'}</td>
-                    <td class="px-8 py-5 font-black text-blue-600 text-xs">#${o.id}</td>
-                    <td class="px-8 py-5">
-                        <div class="font-bold text-slate-900 uppercase text-sm">${o.customer}</div>
-                        <div class="text-[10px] text-slate-400 font-medium truncate w-48 italic">"${o.address || 'No Address'}"</div>
-                    </td>
-                    <td class="px-8 py-5 font-bold text-blue-600 text-xs">${cleanDateStr}</td>
-                    <td class="px-8 py-5"><span class="px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-wider">${timeStr}</span></td>
-                    <td class="px-8 py-5 text-right font-black text-slate-900 text-base">₹${fmt(o.total)}</td>
-                    <td class="px-8 py-5 text-center">
-                        <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-50 text-slate-300 group-hover:bg-blue-600 group-hover:text-white transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                        </div>
-                    </td>
-                </tr>`;
-        });
-    } catch(e) { console.error(e); }
-}
-
-window.addEventListener('DOMContentLoaded', loadOrders);
-</script>
+    async function loadOrders() {
+      const table = document.getElementById('ordersTable');
+      table.innerHTML = '<tr><td colspan="7" class="px-4 py-10 text-center text-xs text-slate-400">Loading completed deliveries…</td></tr>';
+      try {
+        const response = await fetch('/api/bills');
+        if (!response.ok) throw new Error('Unable to load orders');
+        const bills = await response.json();
+        completedOrders = bills.filter(order => String(order.Status || order.orderStatus || '').toLowerCase() === 'completed' && Boolean(order.riderAssigned));
+        completedOrders.sort((a, b) => new Date(b.updatedAt || b.date || 0) - new Date(a.updatedAt || a.date || 0));
+        const count = `${completedOrders.length} Completed`;
+        document.getElementById('orderCount').textContent = count;
+        document.getElementById('mobileOrderCount').textContent = count;
+        if (!completedOrders.length) { table.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center"><i class="fa-solid fa-truck-fast mb-2 text-xl text-slate-300"></i><p class="text-xs font-semibold text-slate-600">No completed deliveries yet</p><p class="mt-1 text-[11px] text-slate-400">Completed orders with an assigned delivery partner will appear here.</p></td></tr>'; return; }
+        table.innerHTML = completedOrders.map((order, index) => `<tr class="hover:bg-slate-50"><td class="whitespace-nowrap px-4 py-3 text-[11px] font-bold text-violet-700">#${escapeHtml(order.id || order._id || '—')}</td><td class="px-4 py-3 text-xs font-semibold text-slate-800">${escapeHtml(order.customer || 'Walk-in customer')}</td><td class="whitespace-nowrap px-4 py-3 text-xs text-slate-600">${escapeHtml(order.phone || '—')}</td><td class="max-w-xs px-4 py-3 text-xs text-slate-600"><span class="block truncate" title="${escapeHtml(order.address || '')}">${escapeHtml(order.address || 'No address')}</span></td><td class="px-4 py-3"><span class="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-2 py-1 text-[10px] font-bold text-violet-700"><i class="fa-solid fa-motorcycle"></i>${escapeHtml(order.riderAssigned)}${order.riderCode ? ` · ${escapeHtml(order.riderCode)}` : ''}</span></td><td class="whitespace-nowrap px-4 py-3 text-right text-xs font-bold text-slate-800">${money(order.total)}</td><td class="px-4 py-3 text-right"><button onclick="showDetails(${index})" class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[10px] font-bold text-slate-700 transition hover:bg-violet-600 hover:text-white"><i class="fa-solid fa-eye mr-1"></i>View More</button></td></tr>`).join('');
+      } catch (error) { table.innerHTML = '<tr><td colspan="7" class="px-4 py-10 text-center text-xs text-rose-500">Could not load completed deliveries. Please refresh and try again.</td></tr>'; }
+    }
+    document.getElementById('detailsModal').addEventListener('click', event => { if (event.target.id === 'detailsModal') closeDetails(); });
+    window.addEventListener('DOMContentLoaded', loadOrders);
+  </script>
 </body>
 </html>

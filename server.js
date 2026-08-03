@@ -510,6 +510,45 @@ app.get('/api/riders', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch riders list from database." });
     }
 });
+
+// Activate or deactivate a rider without removing their delivery history.
+app.patch('/api/riders/:id/status', isAuthenticated, async (req, res) => {
+    try {
+        const status = String(req.body.status || '').toLowerCase();
+        if (!['active', 'inactive'].includes(status)) {
+            return res.status(400).json({ error: 'Status must be active or inactive.' });
+        }
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid rider ID.' });
+        }
+
+        const rider = await Rider.findByIdAndUpdate(
+            req.params.id,
+            { $set: { status } },
+            { new: true, runValidators: true }
+        );
+        if (!rider) return res.status(404).json({ error: 'Rider not found.' });
+        res.json({ success: true, rider, message: `Rider ${status === 'active' ? 'activated' : 'deactivated'} successfully.` });
+    } catch (err) {
+        console.error('Failed to update rider status:', err);
+        res.status(500).json({ error: 'Failed to update rider status.' });
+    }
+});
+
+// Permanently remove a rider profile.
+app.delete('/api/riders/:id', isAuthenticated, async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) {
+            return res.status(400).json({ error: 'Invalid rider ID.' });
+        }
+        const rider = await Rider.findByIdAndDelete(req.params.id);
+        if (!rider) return res.status(404).json({ error: 'Rider not found.' });
+        res.json({ success: true, message: 'Rider deleted successfully.' });
+    } catch (err) {
+        console.error('Failed to delete rider:', err);
+        res.status(500).json({ error: 'Failed to delete rider.' });
+    }
+});
 app.put('/api/bills/:id', async (req, res) => {
     try {
         const billId = req.params.id; 

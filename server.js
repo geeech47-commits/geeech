@@ -343,7 +343,7 @@ app.get('/api/next-bill-id', async (req, res) => {
 
 app.get('/api/bills', async (req, res) => {
     try {
-        const query = Bill.find().sort({ date: -1 }).lean();
+        const query = Bill.find().sort({ date: -1 }).populate('riderId', 'riderName riderCode riderMobile').lean();
         // Dashboard cards do not use bill line items, so avoid transferring them.
         if (req.query.summary === '1') query.select('-items');
         const bills = await query;

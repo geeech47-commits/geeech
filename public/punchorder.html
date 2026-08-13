@@ -1,102 +1,910 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gee-Ech | Pending Deliveries</title>
+
+    <!-- Auth Guard -->
     <script>
-    async function checkAuth() {
-        try {
-            const response = await fetch('/api/current-user');
-            if (!response.ok) {
-                // If the server returns 401 (Not logged in), redirect
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/current-user');
+                if (!response.ok) {
+                    window.location.href = "login.html";
+                }
+            } catch (err) {
                 window.location.href = "login.html";
             }
-        } catch (err) {
+        }
+        checkAuth();
+    </script>
+
+    <!-- Tailwind CSS & Font Awesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', Arial, sans-serif; }
+        .logo-container { 
+          margin-bottom: 16px; 
+          display: flex;
+          justify-content: center;
+        }
+        
+        .logo-img {
+          max-width: 100%;
+          width: 160px;
+          height: auto;
+        }
+
+        /* Custom smooth popup animation */
+        @keyframes popupSlideIn {
+            from { opacity: 0; transform: translateY(-1rem) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-popup {
+            animation: popupSlideIn 0.25s ease-out forwards;
+        }
+
+        /* --- ENLARGED TOP THREE-LINE SLIDE MENU STYLING --- */
+        .top-slide-container { position: relative; display: inline-block; }
+        
+        .menu-icon-btn {
+          background: transparent !important;
+          border: 1px solid #e2e8f0 !important;
+          background-color: #f8fafc !important;
+          box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+          cursor: pointer;
+          width: 42px;
+          height: 42px;
+          border-radius: 0.75rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          gap: 5px;
+          padding: 0;
+          transition: all 0.2s ease;
+        }
+
+        .menu-icon-btn:hover {
+          background-color: #f1f5f9 !important;
+          border-color: #cbd5e1 !important;
+        }
+        
+        .menu-icon-line {
+          display: block;
+          width: 20px;
+          height: 3px;
+          background-color: #7c3aed; /* violet-600 */
+          border-radius: 9999px;
+          transition: transform 0.25s ease, opacity 0.25s ease;
+          transform-origin: center;
+        }
+
+        .menu-icon-btn.active .line-1 {
+          transform: translateY(8px) rotate(45deg);
+        }
+        .menu-icon-btn.active .line-2 {
+          opacity: 0;
+        }
+        .menu-icon-btn.active .line-3 {
+          transform: translateY(-8px) rotate(-45deg);
+        }
+
+        .top-slide-menu { 
+          display: none; 
+          position: absolute; 
+          left: 0; 
+          top: calc(100% + 10px); 
+          z-index: 99999; 
+          width: 200px; 
+          background: #fff; 
+          border: 1px solid #e2e8f0; 
+          border-radius: .75rem; 
+          box-shadow: 0 20px 30px -10px rgba(15,23,42,0.25); 
+          opacity: 0;
+          transform: translateY(-8px);
+          transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .top-slide-menu.show { 
+          display: block; 
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .action-option { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .75rem .9rem; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; transition: background .15s ease; }
+
+        /* --- THIN SCROLLBAR STYLING --- */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(203, 213, 225, 0.6);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.8);
+        }
+
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(203, 213, 225, 0.6) transparent;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden" onclick="closeTopSlideMenuOnClickOutside(event)">
+
+    <!-- CENTER POPUP TOAST -->
+    <div id="centerToast" class="fixed inset-0 z-[999999] flex items-center justify-center pointer-events-none opacity-0 scale-95 transition-all duration-200">
+      <div class="bg-white text-slate-800 px-6 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-200">
+        <i class="fa-solid fa-circle-check text-emerald-500 text-base"></i>
+        <span id="centerToastText" class="text-xs font-bold tracking-wide uppercase">Data Refreshed Successfully</span>
+      </div>
+    </div>
+
+    <!-- MOBILE OVERLAY BACKDROP -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-35 md:hidden hidden transition-opacity"></div>
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 w-64 bg-white text-slate-700 flex flex-col justify-between shrink-0 h-full border-r border-slate-200 transition-transform duration-300 ease-in-out -translate-x-full md:translate-x-0">
+        <div class="flex-1 overflow-y-auto min-h-0">
+            <div class="login-card relative pt-4">
+                <button onclick="toggleSidebar()" class="md:hidden absolute top-4 right-3 text-slate-400 hover:text-slate-700 p-1">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <div class="logo-container pt-2">
+                    <img src="logo.jpeg" alt="Logo" class="logo-img">
+                </div>
+            </div>
+
+            <nav class="px-3 space-y-1">
+                <a href="homepage.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-calculator w-5 h-5 mr-3 text-blue-500 group-hover:text-blue-600"></i>
+                    Dashboard
+                </a>
+                <a href="/createbill.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-calculator w-5 h-5 mr-3 text-blue-500 group-hover:text-blue-600"></i>
+                    New Bill
+                </a>
+                <a href="punchorder.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-basket-shopping w-5 h-5 mr-3 text-indigo-500 group-hover:text-indigo-600"></i>
+                    Pending deliveries
+                </a>
+                <a href="viewbills.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-file-invoice-dollar w-5 h-5 mr-3 text-emerald-500 group-hover:text-emerald-600"></i>
+                    Invoices
+                </a>
+                <a href="todaysorders.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-truck-fast w-5 h-5 mr-3 text-amber-500 group-hover:text-amber-600"></i>
+                    Delivered Orders
+                </a>
+                <a href="editmenu.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-boxes-stacked w-5 h-5 mr-3 text-purple-500 group-hover:text-purple-600"></i>
+                    Menu updation
+                </a>
+                <a href="cancelledorder.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                    <i class="fa-solid fa-ban w-5 h-5 mr-3 text-rose-500 group-hover:text-rose-600"></i>
+                    Cancelled Orders
+                </a>
+
+                <div class="pt-3 border-t border-slate-200 mt-3">
+                    <p class="px-4 text-[10px] font-bold uppercase text-emerald-600 tracking-wider mb-2">Admin Section</p>
+                    <a href="adduser.html" id="addUserSidebarLink" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                        <i class="fa-solid fa-user-plus w-5 h-5 mr-3 text-emerald-500 group-hover:text-emerald-600"></i>
+                        <span id="addUserText">Add User</span>
+                    </a>
+                    <a href="addriders.html" id="addRiderSidebarLink" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group">
+                        <i class="fa-solid fa-motorcycle w-5 h-5 mr-3 text-red-500 group-hover:text-emerald-600"></i>
+                        <span id="addRiderText">Add Rider</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <div class="p-4 m-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-bold text-xs">
+                    <i class="fa-solid fa-user text-xs"></i>
+                </div>
+                <div class="overflow-hidden leading-tight">
+                    <h4 id="sidebarUsername" class="text-xs font-bold text-slate-800 truncate">Faizan</h4>
+                    <span id="sidebarRole" class="text-[9px] font-extrabold text-violet-700 bg-violet-100 border border-violet-200 px-1.5 py-0.2 rounded uppercase">super admin</span>
+                </div>
+            </div>
+            <button onclick="logout()" class="text-slate-400 hover:text-rose-600 p-2 transition" title="Logout">
+                <i class="fa-solid fa-right-from-bracket text-xs"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+        <header class="bg-white border-b border-slate-200 px-6 sm:px-8 py-3.5 flex items-center justify-between shadow-sm z-10">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-600 hover:text-violet-600 p-1 focus:outline-none" title="Toggle Menu">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <h1 class="text-base font-extrabold text-slate-900">Pending Deliveries</h1>
+            </div>
+
+            <div class="flex items-center gap-3 sm:gap-4">
+                <div class="hidden sm:flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-xl text-xs font-semibold">
+                    <span class="text-slate-500">Logged in as:</span>
+                    <span id="displayUsername" class="capitalize text-blue-600 font-bold">Faizan</span>
+                    <span id="displayRole" class="px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded uppercase font-bold">ADMIN</span>
+                </div>
+
+                <div class="top-slide-container">
+                    <button id="menuToggleBtn" onclick="toggleTopSlideMenu(event)" class="menu-icon-btn focus:outline-none" title="Options">
+                        <span class="menu-icon-line line-1"></span>
+                        <span class="menu-icon-line line-2"></span>
+                        <span class="menu-icon-line line-3"></span>
+                    </button>
+                    <div id="topSlideMenu" class="top-slide-menu right-0 left-auto">
+                        <div class="p-3 border-b border-slate-100 bg-slate-50 rounded-t-xl sm:hidden">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Logged in as</p>
+                            <p id="dropdownUsername" class="text-xs font-extrabold text-slate-800 capitalize mt-0.5">Faizan</p>
+                            <span id="dropdownRole" class="inline-block mt-1 px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] font-bold rounded uppercase">Admin</span>
+                        </div>
+                        <div class="p-1.5 space-y-1">
+                            <button onclick="topMenuAction('option1')" class="action-option text-slate-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg">
+                                <i class="fa-solid fa-chart-pie text-violet-600 w-4"></i> Dashboard View
+                            </button>
+                            <button onclick="topMenuAction('option2')" class="action-option text-slate-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg">
+                                <i class="fa-solid fa-rotate text-violet-600 w-4"></i> Refresh Data
+                            </button>
+                            <button onclick="topMenuAction('option3')" class="action-option text-slate-700 hover:bg-violet-50 hover:text-violet-700 rounded-lg border-t border-slate-100">
+                                <i class="fa-solid fa-sliders text-violet-600 w-4"></i> Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="toggleBillModal()" class="inline-flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all">
+                    <i class="fa-solid fa-plus text-xs"></i> 
+                    <span>New Bill</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 bg-slate-50">
+            <!-- PENDING DELIVERIES TABLE SECTION -->
+            <div class="bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between p-6 border-b border-slate-100 bg-white">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-sm font-bold shadow-2xs">
+                            <i class="fa-solid fa-truck-fast"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm">Pending Deliveries</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Orders waiting for dispatch</p>
+                        </div>
+                    </div>
+                    <span id="pendingCountBadge" class="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-extrabold px-3 py-1 rounded-full shadow-2xs">0 Pending</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                <th class="py-3.5 px-6">Order ID</th>
+                                <th class="py-3.5 px-6">Customer</th>
+                                <th class="py-3.5 px-6">Delivery Address</th>
+                                <th class="py-3.5 px-6">Amount</th>
+                                <th class="py-3.5 px-6 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingDeliveriesTableBody" class="divide-y divide-slate-100 text-xs text-slate-700">
+                            <tr>
+                                <td colspan="5" class="text-xs text-slate-400 italic text-center py-8">Fetching pending deliveries...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- VIEW ORDER DETAILS MODAL -->
+    <div id="viewOrderModal" class="fixed inset-0 bg-slate-950/30 z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white w-full max-w-xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 animate-popup">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-sm text-slate-900">Order Details</h3>
+                        <p class="text-[11px] text-slate-400">Complete itemized invoice view</p>
+                    </div>
+                </div>
+                <button onclick="closeViewOrderModal()" class="text-slate-400 hover:text-slate-800 p-2 rounded-xl hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="viewOrderModalBody" class="p-6 overflow-y-auto space-y-4 max-h-[72vh] bg-white">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ASSIGN DELIVERY MODAL POPUP[cite: 3] -->
+    <div id="assignDeliveryModal" class="fixed inset-0 bg-slate-950/30 z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100 animate-popup">
+            <!-- Modal Header -->
+            <div class="p-6 bg-white text-slate-900 flex items-center justify-between border-b border-slate-100">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-purple-600 rounded-2xl flex items-center justify-center text-white text-base shadow-md shadow-purple-900/30">
+                        <i class="fa-solid fa-motorcycle"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-base tracking-wide text-slate-900">Assign Delivery Rider</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Select an active rider to dispatch this order</p>
+                    </div>
+                </div>
+                <button onclick="toggleAssignModal(false)" class="text-slate-400 hover:text-slate-800 text-xl p-2 rounded-xl hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-6 bg-white text-xs">
+                <!-- Order Summary Card -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Order ID</span>
+                        <span id="popupOrderId" class="font-extrabold text-purple-600 text-sm">#</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500 font-medium">Customer Name</span>
+                        <span id="popupCustomerName" class="font-bold text-slate-900 capitalize"></span>
+                    </div>
+                    <div class="flex flex-col gap-1.5 pt-1">
+                        <span class="text-slate-500 font-medium">Delivery Address</span>
+                        <span id="popupAddress" class="font-semibold text-slate-800 bg-white p-3 rounded-xl border border-slate-200 leading-relaxed"></span>
+                    </div>
+                </div>
+
+                <!-- Available Riders List Section[cite: 3] -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-extrabold text-slate-700 uppercase tracking-wider text-[11px]">Available Riders[cite: 3]</h4>
+                        <span class="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">Active Fleet</span>
+                    </div>
+                    <div id="ridersListContainer" class="space-y-3 max-h-56 overflow-y-auto pr-1">
+                        <div class="text-slate-400 italic text-center py-6 bg-white rounded-2xl border border-slate-200">Loading riders...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 bg-white border-t border-slate-100 flex justify-end">
+                <button onclick="toggleAssignModal(false)" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-xs">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUCCESS POPUP NOTIFICATION MODAL -->
+    <div id="successPopupModal" class="fixed inset-0 bg-slate-950/30 z-60 flex items-center justify-center hidden p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col p-6 text-center animate-popup border border-slate-100">
+            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm border border-emerald-100">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h3 class="text-base font-extrabold text-slate-900 mb-1">Successfully Assigned!</h3>
+            <p id="successPopupText" class="text-xs text-slate-600 font-medium leading-relaxed mb-6 px-2">Delivery assigned successfully.</p>
+            <button onclick="closeSuccessPopup()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition">
+                Okay, Got It
+            </button>
+        </div>
+    </div>
+
+    <!-- CREATE BILL MODAL (POS UI) -->
+    <div id="billModal" class="fixed inset-0 bg-slate-950/10 z-50 flex items-center justify-center hidden p-4"></div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let currentGlobalBills = [];
+        let toastTimeout = null;
+
+        function toggleTopSlideMenu(event) {
+          event.stopPropagation();
+          const menu = document.getElementById('topSlideMenu');
+          const btn = document.getElementById('menuToggleBtn');
+          menu.classList.toggle('show');
+          btn.classList.toggle('active');
+        }
+
+        function closeTopSlideMenuOnClickOutside(event) {
+          const menu = document.getElementById('topSlideMenu');
+          const btn = document.getElementById('menuToggleBtn');
+          if (menu && menu.classList.contains('show') && !menu.contains(event.target) && !btn.contains(event.target)) {
+            menu.classList.remove('show');
+            btn.classList.remove('active');
+          }
+        }
+
+        function topMenuAction(option) {
+          const menu = document.getElementById('topSlideMenu');
+          const btn = document.getElementById('menuToggleBtn');
+          menu.classList.remove('show');
+          btn.classList.remove('active');
+          if (option === 'option1') {
+            showCenterToast('Dashboard View Loaded');
+          } else if (option === 'option2') {
+            fetchAndRenderData();
+            showCenterToast('Data Refreshed Successfully');
+          } else if (option === 'option3') {
+            showCenterToast('Settings Opened');
+          }
+        }
+
+        function showCenterToast(message = "Data Refreshed Successfully") {
+          const toast = document.getElementById('centerToast');
+          const toastText = document.getElementById('centerToastText');
+          toastText.textContent = message;
+          
+          if (toastTimeout) clearTimeout(toastTimeout);
+          
+          toast.classList.remove('opacity-0', 'scale-95');
+          toast.classList.add('opacity-100', 'scale-100');
+          
+          toastTimeout = setTimeout(() => {
+            toast.classList.remove('opacity-100', 'scale-100');
+            toast.classList.add('opacity-0', 'scale-95');
+          }, 2000);
+        }
+
+        function highlightActiveSidebar() {
+            const currentPath = window.location.pathname.split('/').pop() || 'index.html';
+            document.querySelectorAll('#sidebar nav a').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && href === currentPath) {
+                    link.classList.remove('text-slate-600', 'hover:bg-slate-50', 'hover:text-slate-900');
+                    link.classList.add('bg-violet-200', 'text-violet-900', 'font-semibold');
+                }
+            });
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        async function fetchAndRenderData() {
+            try {
+                const response = await fetch('/api/bills?summary=1');
+                if (!response.ok) return;
+                
+                const bills = await response.json();
+                currentGlobalBills = bills;
+
+                bills.sort((a, b) => new Date(b.date || b.deliveryDate || 0) - new Date(a.date || a.deliveryDate || 0));
+
+                renderPendingDeliveries(bills);
+
+            } catch (err) {
+                console.error("Failed to load invoice history:", err);
+            }
+        }
+
+        function renderPendingDeliveries(bills) {
+            const tableBody = document.getElementById('pendingDeliveriesTableBody');
+            const countBadge = document.getElementById('pendingCountBadge');
+
+            const validOrders = bills.filter(order => {
+                const addr = order.address || order.deliveryAddress || order.custAddress;
+                const rawStatus = order.Status || order.status || "";
+                const status = rawStatus.trim().toLowerCase();
+
+                return (
+                    addr &&
+                    addr.trim() !== "" &&
+                    status === "delivery pending"
+                );
+            });
+
+            countBadge.textContent = `${validOrders.length} Pending`;
+
+            if (validOrders.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-12 text-center">
+                            <div class="flex flex-col items-center justify-center">
+                                <div class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center text-xs mb-2.5">
+                                    <i class="fa-solid fa-box-open"></i>
+                                </div>
+                                <p class="text-xs font-semibold text-slate-600">No Pending Deliveries</p>
+                                <p class="text-[11px] text-slate-400 mt-1">All orders have been dispatched.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = validOrders.map(order => {
+                const orderId = order.invoiceNo || order.id || 'N/A';
+                const name = order.customer || order.customerName || 'Customer';
+                const address = order.address || order.deliveryAddress || order.custAddress || 'No Address';
+                const amount = parseFloat(order.total || order.grandTotal || 0);
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-4 px-6 font-extrabold text-slate-900">#${orderId}</td>
+                        <td class="py-4 px-6 font-bold text-blue-600 capitalize">${name}</td>
+                        <td class="py-4 px-6 text-slate-600 max-w-xs truncate" title="${address}"><i class="fa-solid fa-location-dot mr-1.5 text-[10px] text-slate-400"></i>${address}</td>
+                        <td class="py-4 px-6 font-bold text-slate-900">₹${amount.toLocaleString()}</td>
+                        <td class="py-4 px-6 text-right">
+                            <div class="inline-flex items-center gap-2">
+                                <button onclick="openViewOrderModal('${orderId}')" class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold transition">
+                                    <i class="fa-solid fa-eye text-[10px]"></i><span>View</span>
+                                </button>
+                                <button onclick="openAssignModal('${orderId}')" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-[11px] font-bold shadow-sm transition">
+                                    <i class="fa-solid fa-motorcycle text-[10px]"></i><span>Assign</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function openViewOrderModal(orderId) {
+            const modal = document.getElementById('viewOrderModal');
+            const body = document.getElementById('viewOrderModalBody');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            body.innerHTML = '<div class="py-12 text-center text-xs font-semibold text-slate-400">Loading order details...</div>';
+
+            try {
+                const response = await fetch(`/api/bills/${encodeURIComponent(orderId)}`);
+                if (!response.ok) throw new Error('Failed to load order details');
+                const bill = await response.json();
+                
+                const items = Array.isArray(bill.items) ? bill.items : [];
+                const orderNumber = bill.invoiceNo || bill.id || orderId;
+                const customer = bill.customer || bill.customerName || 'Customer';
+                const phone = bill.phone || bill.customerPhone || 'Not provided';
+                const address = bill.address || bill.deliveryAddress || bill.custAddress || 'No Address Provided';
+                const total = parseFloat(bill.total || bill.grandTotal || 0);
+
+                body.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                                <span class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Order ID</span>
+                                <p class="text-sm font-extrabold text-slate-900 mt-0.5">#${orderNumber}</p>
+                            </div>
+                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                                <span class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Customer Phone</span>
+                                <p class="text-sm font-extrabold text-slate-900 mt-0.5">${phone}</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                            <span class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Customer & Address</span>
+                            <p class="font-bold text-slate-900 capitalize text-xs">${customer}</p>
+                            <p class="text-xs text-slate-600 leading-relaxed"><i class="fa-solid fa-location-dot mr-1.5 text-slate-400"></i>${address}</p>
+                        </div>
+
+                        <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                            <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-700">
+                                <span>Ordered Items</span>
+                                <span>Subtotal</span>
+                            </div>
+                            <div class="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                                ${items.length ? items.map(item => {
+                                    const qty = Number(item.quantity || 1);
+                                    const itemTotal = Number(item.price || 0) * qty;
+                                    return `
+                                        <div class="px-4 py-3 flex justify-between items-center text-xs">
+                                            <span class="font-medium text-slate-800">${item.name} <span class="text-slate-400 font-bold">× ${qty}</span></span>
+                                            <span class="font-bold text-slate-900">₹${itemTotal.toLocaleString()}</span>
+                                        </div>
+                                    `;
+                                }).join('') : '<div class="p-4 text-center text-slate-400 italic">No items found</div>'}
+                            </div>
+                            <div class="bg-slate-50 px-4 py-3 border-t border-slate-200 flex justify-between items-center text-xs font-extrabold text-slate-900">
+                                <span>Grand Total</span>
+                                <span class="text-sm text-indigo-600">₹${total.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                body.innerHTML = '<div class="py-12 text-center text-xs font-semibold text-rose-500">Could not load order details.</div>';
+            }
+        }
+
+        function closeViewOrderModal() {
+            document.getElementById('viewOrderModal').classList.add('hidden');
+            document.getElementById('viewOrderModal').classList.remove('flex');
+        }
+
+        async function openAssignModal(orderId) {
+            const order = currentGlobalBills.find(b => (b.invoiceNo === orderId || b.id === orderId));
+            if (!order) return;
+
+            document.getElementById('popupOrderId').textContent = '#' + (order.invoiceNo || order.id || 'N/A');
+            document.getElementById('popupCustomerName').textContent = order.customer || order.customerName || 'Customer';
+            document.getElementById('popupAddress').textContent = order.address || order.deliveryAddress || order.custAddress || 'No Address Provided';
+
+            const ridersContainer = document.getElementById('ridersListContainer');
+            ridersContainer.innerHTML = `<div class="text-slate-400 italic text-center py-6 bg-white rounded-2xl border border-slate-200">Loading riders...</div>`;
+
+            toggleAssignModal(true);
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
+                const response = await fetch('/api/riders', { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error("Failed to load riders");
+                }
+
+                const allRiders = await response.json();
+                const riders = allRiders.filter(r => (r.status || "Active").toLowerCase() === "active");
+
+                if (riders.length === 0) {
+                    ridersContainer.innerHTML = `
+                        <div class="text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-2xl text-center text-xs font-semibold">
+                            No active riders available
+                        </div>`;
+                    return;
+                }
+
+                ridersContainer.innerHTML = riders.map(rider => {
+                    const riderId = rider._id || rider.id;
+                    const riderName = rider.riderName || 'Unnamed rider';
+                    const riderCode = rider.riderCode || 'GH ID pending';
+                    const riderMobile = rider.riderMobile || "No Phone";
+                    const riderVehicle = rider.riderVehicle || "Vehicle N/A";
+                    const riderPhoto = rider.riderPhoto;
+
+                    return `
+                        <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:border-purple-300 transition">
+                            <div class="flex items-center gap-3 overflow-hidden">
+                                ${
+                                    riderPhoto
+                                    ? `<img src="${riderPhoto}" class="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0">`
+                                    : `<div class="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 font-extrabold flex items-center justify-center text-sm shrink-0 shadow-xs">
+                                            ${riderName.charAt(0).toUpperCase()}
+                                       </div>`
+                                }
+                                <div class="overflow-hidden leading-tight">
+                                    <div class="font-bold text-slate-900 text-xs capitalize truncate">${riderName}</div>
+                                    <div class="text-[10px] font-bold text-purple-600 mt-0.5">${riderCode}</div>
+                                    <div class="text-[11px] text-slate-500 font-medium mt-1 flex items-center gap-2">
+                                        <span><i class="fa-solid fa-motorcycle mr-1 text-[10px] text-slate-400"></i>${riderVehicle}</span>
+                                        <span>•</span>
+                                        <span><i class="fa-solid fa-phone mr-1 text-[10px] text-slate-400"></i>${riderMobile}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                data-order-id="${encodeURIComponent(orderId)}"
+                                data-rider-name="${encodeURIComponent(riderName)}"
+                                data-rider-id="${encodeURIComponent(riderId)}"
+                                data-rider-code="${encodeURIComponent(riderCode)}"
+                                class="assign-rider-btn px-4 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-xl text-xs font-medium transition shadow-sm shrink-0">
+                                Assign
+                            </button>
+                        </div>
+                    `;
+                }).join("");
+
+                ridersContainer.querySelectorAll('.assign-rider-btn').forEach(button => {
+                    button.addEventListener('click', () => assignRiderToOrder(
+                        decodeURIComponent(button.dataset.orderId),
+                        decodeURIComponent(button.dataset.riderName),
+                        decodeURIComponent(button.dataset.riderId),
+                        decodeURIComponent(button.dataset.riderCode)
+                    ));
+                });
+
+            } catch (err) {
+                console.error(err);
+                ridersContainer.innerHTML = `
+                    <div class="text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-2xl text-center text-xs font-semibold">
+                        ${err.name === 'AbortError' ? 'Riders took too long to load. Please try again.' : 'Failed to load riders.'}
+                    </div>`;
+            }
+        }
+
+        function toggleAssignModal(show) {
+            const modal = document.getElementById('assignDeliveryModal');
+            if (show) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        async function assignRiderToOrder(orderId, riderName, riderId, riderCode) {
+            const order = currentGlobalBills.find(b => (b.invoiceNo === orderId || b.id === orderId));
+            if (order) {
+                const targetId = order.id || order.invoiceNo || orderId;
+
+                try {
+                    const response = await fetch(`/api/bills/${encodeURIComponent(targetId)}/status`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            status: 'out for delivery', 
+                            riderAssigned: riderName,
+                            riderId: riderId,
+                            riderCode: riderCode
+                        })
+                    });
+                    if (!response.ok) {
+                        const result = await response.json().catch(() => ({}));
+                        throw new Error(result.error || 'Unable to assign rider');
+                    }
+                } catch (err) {
+                    console.error("Failed to update status on server:", err);
+                    alert('Could not assign this rider. Please try again.');
+                    return;
+                }
+            }
+
+            toggleAssignModal(false);
+            showSuccessPopup(orderId, riderName);
+            await fetchAndRenderData();
+        }
+
+        function showSuccessPopup(orderId, riderName) {
+            const modal = document.getElementById('successPopupModal');
+            const messageEl = document.getElementById('successPopupText');
+            messageEl.innerHTML = `Order <strong class="text-slate-900">#${orderId}</strong> has been successfully assigned to rider <strong class="text-purple-700 capitalize">${riderName}</strong> and marked as out for delivery!`;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSuccessPopup() {
+            document.getElementById('successPopupModal').classList.add('hidden');
+            document.getElementById('successPopupModal').classList.remove('flex');
+        }
+
+        async function displayLoggedInUser() {
+            try {
+                const response = await fetch('/api/current-user', { credentials: 'include' });
+                if (response.ok) {
+                    const data = await response.json();
+                    const username = data.username || 'Faizan';
+                    const role = (data.role || 'admin').toLowerCase();
+
+                    document.getElementById('displayUsername').textContent = username;
+                    document.getElementById('displayRole').textContent = role.toUpperCase();
+                    document.getElementById('sidebarUsername').textContent = username;
+                    document.getElementById('sidebarRole').textContent = role.toUpperCase();
+                    
+                    const dropdownUsername = document.getElementById('dropdownUsername');
+                    const dropdownRole = document.getElementById('dropdownRole');
+                    if (dropdownUsername) dropdownUsername.textContent = username;
+                    if (dropdownRole) dropdownRole.textContent = role.toUpperCase();
+
+                    if (role !== 'admin') {
+                        const addUserSidebarLink = document.getElementById('addUserSidebarLink');
+                        const addRiderSidebarLink = document.getElementById('addRiderSidebarLink');
+                        if (addUserSidebarLink) {
+                            addUserSidebarLink.style.opacity = "0.4";
+                            document.getElementById('addUserText').innerText = "Add User (Locked)";
+                        }
+                        if (addRiderSidebarLink) {
+                            addRiderSidebarLink.style.opacity = "0.4";
+                            document.getElementById('addRiderText').innerText = "Add Rider (Locked)";
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Could not fetch user profile:", error);
+            }
+        }
+
+        let posMenu = [];
+        let posItems = [];
+        let posCategory = '';
+
+        function posMoney(value) { return Number(value || 0).toFixed(2); }
+
+        function toggleBillModal() {
+            const modal = document.getElementById('billModal');
+            if (!modal.classList.contains('hidden')) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                return;
+            }
+
+            modal.innerHTML = `
+                <div class="bg-white w-full max-w-[1500px] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] border border-slate-200">
+                    <div class="p-4 sm:p-6 bg-white text-slate-900 flex items-center justify-between border-b border-slate-200"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i class="fa-solid fa-receipt"></i></div><div><h3 class="font-bold text-lg">Create Customer Bill</h3><p class="text-xs text-slate-500">Quick menu, cart, payment and receipt</p></div></div><button onclick="toggleBillModal()" class="text-slate-400 hover:text-slate-800 text-xl"><i class="fa-solid fa-xmark"></i></button></div>
+                    <div class="p-4 sm:p-6 overflow-y-auto"><div class="grid grid-cols-1 lg:grid-cols-12 gap-6"><div class="lg:col-span-7 space-y-6"><div class="bg-white rounded-2xl border border-slate-200 p-4"><h4 class="text-sm font-bold text-indigo-600 uppercase mb-4">Customer Details</h4><div class="grid grid-cols-1 sm:grid-cols-3 gap-4"><div><label class="block text-xs font-bold uppercase text-slate-400 mb-1">Phone Number</label><input id="posCustomerPhone" type="tel" maxlength="10" placeholder="7006xxxxxx" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500"></div><div><label class="block text-xs font-bold uppercase text-slate-400 mb-1">Customer Name</label><input id="posCustomerName" type="text" placeholder="WALK-IN" class="w-full bg-slate-50 border-none rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 uppercase"></div><div><label class="block text-xs font-bold uppercase text-slate-400 mb-1">Bill No.</label><input id="posBillNumber" type="text" readonly class="w-full bg-slate-100 border-none rounded-xl px-4 py-2 text-slate-500 font-mono"></div></div></div><div class="bg-white rounded-2xl border border-slate-200 p-4"><div class="flex flex-col sm:flex-row justify-between gap-4 mb-5"><h4 class="text-lg font-bold">Quick Menu</h4><div class="flex gap-2"><select id="posSelectItem" class="flex-1 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm"><option value="">Select item...</option></select><input id="posItemQuantity" type="number" min="1" value="1" class="w-14 bg-slate-50 border-none rounded-lg px-2 py-2 text-center"><button onclick="posAddSelectedItem()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium">Add</button></div></div><div id="posMenuItems" class="flex gap-4 h-72 overflow-hidden"></div></div></div><div class="lg:col-span-5"><div class="bg-white rounded-2xl border border-slate-200 overflow-hidden"><div class="bg-white text-slate-900 border-b border-slate-200 p-4 text-center"><h4 class="font-bold tracking-widest text-lg uppercase">Receipt</h4></div><div class="p-5"><div id="posBillItems" class="space-y-4 min-h-[180px] max-h-[300px] overflow-y-auto"></div><div class="mt-6 pt-5 border-t-2 border-dashed border-slate-200 space-y-3"><div class="flex justify-between text-slate-600 text-sm"><span>Subtotal</span><span>₹<span id="posSubtotal">0.00</span></span></div><div class="flex justify-between items-center text-slate-600 text-sm"><span>Discount (₹)</span><input id="posDiscount" type="number" min="0" value="0" oninput="posCalcTotals()" class="w-20 text-right bg-slate-50 border-none rounded-md px-2 py-1 font-bold"></div><div class="flex justify-between items-center text-indigo-600 text-sm"><span>Advance Paid (₹)</span><input id="posAdvance" type="number" min="0" value="0" oninput="posCalcTotals()" class="w-20 text-right bg-indigo-50 border-none rounded-md px-2 py-1 font-bold"></div><div class="flex justify-between text-slate-900 text-xl font-bold pt-3 border-t"><span class="text-base uppercase">Balance Due</span><span>₹<span id="posTotal">0.00</span></span></div></div></div></div></div></div></div>
+                    <div class="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap justify-end gap-3"><button onclick="posClearBill()" class="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold">Clear</button><button onclick="posPrintThermal()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">Print Receipt</button><button onclick="posSaveBill()" class="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold">Save Bill</button></div>
+                </div>`;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            posItems = [];
+            posLoadMenu();
+            posFetchBillNumber();
+        }
+
+        async function posLoadMenu() {
+            try { const response = await fetch('/api/menu'); posMenu = response.ok ? await response.json() : []; } catch (error) { posMenu = []; }
+            posCategory = posMenu.length ? (posMenu[0].category || 'General') : '';
+            posRenderMenu();
+            posColorMenuTiles();
+            posRenderItems();
+        }
+
+        function posRenderMenu() {
+            const host = document.getElementById('posMenuItems');
+            if (!host) return;
+            const categories = [...new Set(posMenu.map(item => item.category || 'General'))];
+            host.innerHTML = `<div class="w-1/4 flex flex-col gap-2 overflow-y-auto pr-1 border-r border-slate-100">${categories.map(category => `<button onclick="posSetCategory(${JSON.stringify(category)})" class="text-left p-2.5 rounded-xl text-[11px] font-bold uppercase ${category === posCategory ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}">${category}</button>`).join('')}</div><div class="w-3/4 grid grid-cols-2 sm:grid-cols-3 gap-2 content-start overflow-y-auto pl-1">${posMenu.map((item, index) => (item.category || 'General') === posCategory ? `<button onclick="posQuickAdd(${index})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-left rounded-xl p-3 shadow-sm"><p class="font-bold text-[11px] uppercase truncate">${item.name}</p><p class="text-[10px] opacity-90">₹${posMoney(item.price)}</p></button>` : '').join('')}</div>`;
+            document.getElementById('posSelectItem').innerHTML = '<option value="">Select item...</option>' + posMenu.map((item, index) => `<option value="${index}">${item.name}</option>`).join('');
+        }
+
+        function posChangeQuantity(index, amount) {
+            const item = posItems[index];
+            if (!item) return;
+            item.quantity += amount;
+            if (item.quantity <= 0) posItems.splice(index, 1);
+            posRenderItems();
+        }
+
+        function posColorMenuTiles() {
+            const colors = ['#6d28d9', '#2563eb', '#059669', '#ea580c', '#dc2626', '#db2777', '#0891b2', '#4f46e5'];
+            document.querySelectorAll('#posMenuItems > div:last-child button').forEach((button, index) => {
+                button.style.backgroundColor = colors[index % colors.length];
+            });
+        }
+
+        function posSetCategory(category) { posCategory = category; posRenderMenu(); posColorMenuTiles(); }
+        function posQuickAdd(index) { posAddItem(posMenu[index], 1); }
+        function posAddSelectedItem() { const index = document.getElementById('posSelectItem').value; const quantity = Number(document.getElementById('posItemQuantity').value) || 1; if (index !== '') posAddItem(posMenu[index], quantity); }
+        function posAddItem(item, quantity) { if (!item) return; const existing = posItems.find(entry => entry.name === item.name); if (existing) existing.quantity += quantity; else posItems.push({ ...item, quantity }); posRenderItems(); }
+        function posRenderItems() { const host = document.getElementById('posBillItems'); if (!host) return; host.innerHTML = posItems.length ? posItems.map((item, index) => `<div class="flex justify-between items-center border-b border-slate-100 pb-3 text-sm"><div class="flex-1 min-w-0"><p class="font-medium uppercase truncate">${item.name}</p><div class="flex items-center gap-2 mt-1"><button onclick="posChangeQuantity(${index}, -1)" class="w-6 h-6 rounded-md bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 font-bold">−</button><span class="text-xs font-bold w-5 text-center">${item.quantity}</span><button onclick="posChangeQuantity(${index}, 1)" class="w-6 h-6 rounded-md bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold">+</button><span class="text-[10px] text-slate-400">× ₹${posMoney(item.price)}</span></div></div><div class="text-right ml-3"><p class="font-bold">₹${posMoney(item.price * item.quantity)}</p><button onclick="posRemoveItem(${index})" class="text-[10px] text-rose-500 font-bold mt-1">REMOVE</button></div></div>`).join('') : '<p class="text-center text-slate-400 py-10 uppercase font-bold">Your cart is empty</p>'; posCalcTotals(); }
+        function posRemoveItem(index) { posItems.splice(index, 1); posRenderItems(); }
+        function posCalcTotals() { const subtotal = posItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0); const discount = Number(document.getElementById('posDiscount')?.value) || 0; const advance = Number(document.getElementById('posAdvance')?.value) || 0; const total = Math.max(0, subtotal - discount) - advance; document.getElementById('posSubtotal').textContent = posMoney(subtotal); document.getElementById('posTotal').textContent = posMoney(total); }
+        async function posFetchBillNumber() { try { const response = await fetch('/api/next-bill-id'); const data = await response.json(); document.getElementById('posBillNumber').value = data.billId; } catch (error) { document.getElementById('posBillNumber').value = 'PENDING'; } }
+        function posBillObject() { return { id: document.getElementById('posBillNumber').value, date: new Date().toISOString(), customer: document.getElementById('posCustomerName').value.toUpperCase() || 'WALK-IN', phone: document.getElementById('posCustomerPhone').value, items: JSON.parse(JSON.stringify(posItems)), subtotal: document.getElementById('posSubtotal').textContent, orderSource: 'offline', discount: document.getElementById('posDiscount').value || 0, advance: document.getElementById('posAdvance').value || 0, total: document.getElementById('posTotal').textContent }; }
+        function posShowSuccess(billId) {
+            document.getElementById('posSaveToast')?.remove();
+            const toast = document.createElement('div');
+            toast.id = 'posSaveToast';
+            toast.className = 'fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/10';
+            toast.innerHTML = `<div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-emerald-100 p-7 text-center animate-popup"><div class="mx-auto w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl mb-4"><i class="fa-solid fa-check"></i></div><h3 class="text-xl font-extrabold text-slate-900">Bill Saved Successfully!</h3><p class="text-sm text-slate-500 mt-2">Your transaction has been saved and is ready to view or print.</p><div class="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-2 text-emerald-700 text-xs font-bold"><i class="fa-solid fa-receipt"></i> ${billId}</div><button onclick="document.getElementById('posSaveToast').remove()" class="mt-6 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm">Done</button></div>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        async function posSaveBill() { if (!posItems.length) return alert('Add items first'); const bill = posBillObject(); try { const response = await fetch('/api/bills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bill) }); if (!response.ok) throw new Error(); await posClearBill(); fetchAndRenderData(); posShowSuccess(bill.id); } catch (error) { alert('Could not save the bill.'); } }
+        async function posClearBill() { posItems = []; document.getElementById('posCustomerName').value = ''; document.getElementById('posCustomerPhone').value = ''; document.getElementById('posDiscount').value = 0; document.getElementById('posAdvance').value = 0; posRenderItems(); await posFetchBillNumber(); }
+        function posPrintThermal() { if (!posItems.length) return alert('Add items first'); const bill = posBillObject(); const printWindow = window.open('', '', 'width=360,height=600'); printWindow.document.write(`<html><head><title>Receipt</title><style>body{font:13px Arial;padding:14px}h2{text-align:center;margin:0 0 10px}p{margin:4px 0}.row{display:flex;justify-content:space-between;margin:5px 0}hr{border:0;border-top:1px dashed #555}</style></head><body><h2>RECEIPT</h2><p>Bill: ${bill.id}</p><p>Customer: ${bill.customer}</p><p>Phone: ${bill.phone || 'N/A'}</p><hr>${bill.items.map(item => `<div class="row"><span>${item.name} × ${item.quantity}</span><b>₹${posMoney(item.price * item.quantity)}</b></div>`).join('')}<hr><div class="row"><span>Subtotal</span><b>₹${bill.subtotal}</b></div><div class="row"><span>Discount</span><b>₹${posMoney(bill.discount)}</b></div><div class="row"><span>Advance</span><b>₹${posMoney(bill.advance)}</b></div><div class="row"><span>Balance Due</span><b>₹${bill.total}</b></div></body></html>`); printWindow.document.close(); printWindow.focus(); setTimeout(() => printWindow.print(), 300); }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
             window.location.href = "login.html";
         }
-    }
 
-    // Run this check immediately
-    checkAuth();
-</script>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fruit’z | Punch Online</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-md bg-white p-6 sm:p-8 rounded-[2rem] shadow-lg border border-slate-100">
-    <div class="mb-8 text-center">
-        <h2 class="text-2xl font-black text-slate-800">Punch Online Order</h2>
-        <p class="text-slate-400 text-sm mt-1">Record Zomato/Swiggy orders</p>
-    </div>
-    
-    <div class="space-y-4">
-        <div>
-            <label class="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Bill ID</label>
-            <input type="text" id="billNumber" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-mono font-bold text-slate-600 outline-none">
-        </div>
-        
-        <div>
-            <label class="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Platform</label>
-            <select id="orderSource" class="w-full p-4 border-2 border-slate-100 rounded-2xl bg-white focus:border-indigo-500 outline-none font-medium">
-                <option value="Zomato">Zomato</option>
-                <option value="Swiggy">Swiggy</option>
-                <option value="Other">Other</option>
-            </select>
-        </div>
-        
-        <div>
-            <label class="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Total Amount (₹)</label>
-            <input type="number" id="totalAmount" class="w-full p-4 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-bold text-lg" placeholder="0.00">
-        </div>
-        
-        <button onclick="saveOnlineOrder()" class="w-full py-4 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 transition-all active:scale-95">
-            SAVE ORDER
-        </button>
-    </div>
-  </div>
-
-  <script>
-    async function fetchNewBillId() {
-        try {
-            const res = await fetch('/api/next-bill-id');
-            const data = await res.json();
-            document.getElementById('billNumber').value = data.billId;
-        } catch(e) { console.error("ID fetch failed"); }
-    }
-
-    async function saveOnlineOrder() {
-        const totalAmountInput = document.getElementById('totalAmount');
-        const billId = document.getElementById('billNumber').value;
-        const totalValue = parseFloat(totalAmountInput.value);
-        
-        if (isNaN(totalValue) || totalValue < 0) {
-            alert("Please enter a valid amount.");
-            return;
-        }
-
-       const orderData = {
-    id: billId,
-    subtotal: totalValue,     // required for table
-    advance: totalValue,      // mark paid
-    total: totalValue,                 // no balance
-    customer: document.getElementById('orderSource').value,
-    date: new Date(),
-    items: [],
-    orderSource: "ONLINE"
-};
-        const res = await fetch('/api/bills', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(orderData)
-        });
-
-        if (res.ok) {
-            alert("Order Saved Successfully!");
-            totalAmountInput.value = "";
-            await fetchNewBillId();
-        }
-    }
-    window.onload = fetchNewBillId;
-  </script>
+        window.onload = () => { 
+            highlightActiveSidebar();
+            displayLoggedInUser();
+            fetchAndRenderData();
+        };
+    </script>
 </body>
 </html>

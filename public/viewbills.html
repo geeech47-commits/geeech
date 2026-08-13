@@ -16,7 +16,7 @@
   </script>
 
   <meta charset="UTF-8" />
-  <title>Athwas Retail | Billing History</title>
+  <title>Hamdan by Gee-Ech | Billing History</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <script src="https://cdn.tailwindcss.com"></script>
@@ -60,7 +60,7 @@
     .invoice-action { position: relative; z-index: 1; display: inline-block; }
     .invoice-action:has(.show) { z-index: 100; }
     .invoice-row.menu-open { position: relative; z-index: 100; }
-    .invoice-action-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 9999; width: 150px; overflow: hidden; opacity: 1; pointer-events: auto; background: #fff !important; border: 1px solid #e2e8f0; border-radius: .75rem; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
+    .invoice-action-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 9999; width: 190px; overflow: hidden; opacity: 1; pointer-events: auto; background: #fff !important; border: 1px solid #e2e8f0; border-radius: .75rem; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
     .invoice-action-menu.show { display: block; }
     .action-option { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .75rem .9rem; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; transition: background .15s ease; }
 
@@ -443,7 +443,6 @@
                         <th class="px-6 py-3.5">Bill Details</th>
                         <th class="px-6 py-3.5">Customer</th>
                         <th class="px-6 py-3.5">Phone No.</th>
-                        <th class="px-6 py-3.5">Date & Time</th>
                         <th class="px-6 py-3.5">Status</th>
                         <th class="px-6 py-3.5 text-right">Amount</th>
                         <th class="px-6 py-3.5 text-center">Actions</th>
@@ -506,6 +505,20 @@
     <div class="px-5 py-3.5 bg-white border-t border-slate-100 flex justify-end">
       <button onclick="closeBreakdownModal()" class="px-4 py-1.5 border border-slate-200 text-slate-700 rounded-lg font-bold text-[10px] tracking-wider uppercase hover:bg-slate-50 transition-colors cursor-pointer">Dismiss</button>
     </div>
+  </div>
+</div>
+
+<!-- FULL BILL DETAILS MODAL -->
+<div id="billDetailsModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+  <div class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl">
+    <div class="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-violet-600">Complete bill record</p>
+        <h3 id="detailsModalTitle" class="mt-1 font-mono text-sm font-bold text-slate-900">Bill</h3>
+      </div>
+      <button onclick="closeBillDetails()" class="flex h-8 w-8 items-center justify-center rounded-lg text-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Close">&times;</button>
+    </div>
+    <div id="detailsModalContent" class="overflow-y-auto p-4 sm:p-6"></div>
   </div>
 </div>
 
@@ -685,6 +698,61 @@ function closeBreakdownModal() {
     document.getElementById('breakdownModal').classList.add('hidden');
 }
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[character]));
+}
+
+function formatStoredDate(value) {
+    if (!value) return 'Not available';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : formatDisplayDate(date);
+}
+
+function showBillDetails(index) {
+    const bill = allBills[index];
+    if (!bill) return;
+
+    const hasValue = value => value !== null && value !== undefined && String(value).trim() !== '';
+    const details = [
+        ['Customer', bill.customer], ['Phone', bill.phone], ['Order type', bill.orderType && getOrderTypeLabel(bill.orderType)],
+        ['Order source', bill.orderSource], ['Status', bill.Status || bill.orderStatus], ['Address', bill.address],
+        ['Delivery date', bill.deliveryDate], ['Delivery time', bill.deliveryTime], ['Packaged on', bill.packagedOn],
+        ['Packaged time', bill.packagedTime], ['Rider name', bill.riderId?.riderName || bill.riderAssigned],
+        ['Rider GHID', bill.riderId?.riderCode || bill.riderCode], ['Rider phone', bill.riderId?.riderMobile],
+        ['Rider assigned at', bill.riderAssignedAt && formatStoredDate(bill.riderAssignedAt)],
+        ['Invoice created at', bill.date && formatStoredDate(bill.date)], ['Database created at', bill.createdAt && formatStoredDate(bill.createdAt)],
+        ['Last updated / completed at', bill.updatedAt && formatStoredDate(bill.updatedAt)], ['Cancellation note', bill.cancellationNote]
+    ].filter(([, value]) => hasValue(value));
+    const fields = details.map(([label, value]) => `<div class="border-b border-slate-100 py-3 last:border-0"><p class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">${label}</p><p class="mt-1 break-words text-xs font-semibold leading-relaxed text-slate-800">${escapeHtml(value)}</p></div>`).join('');
+    const items = Array.isArray(bill.items) ? bill.items : [];
+    const itemRows = items.length ? items.map((item, itemIndex) => {
+        const quantity = Number(item.quantity || 0);
+        const rate = Number(item.price || 0);
+        return `<tr class="border-b border-slate-100 last:border-0"><td class="px-3 py-3 font-semibold text-slate-800">${itemIndex + 1}. ${escapeHtml(item.name || 'Item')}</td><td class="px-3 py-3 text-center">${quantity}</td><td class="px-3 py-3 text-right">₹${fmt(rate)}</td><td class="px-3 py-3 text-right font-bold">₹${fmt(rate * quantity)}</td></tr>`;
+    }).join('') : '<tr><td colspan="4" class="px-3 py-6 text-center text-slate-400">No items were saved for this bill.</td></tr>';
+    const excluded = new Set(['_id', '__v', 'id', 'date', 'customer', 'phone', 'address', 'orderType', 'orderSource', 'Status', 'orderStatus', 'deliveryDate', 'deliveryTime', 'packagedOn', 'packagedTime', 'riderAssigned', 'riderId', 'riderCode', 'riderAssignedAt', 'createdAt', 'updatedAt', 'cancellationNote', 'items', 'subtotal', 'discount', 'advance', 'total', 'balance']);
+    const extraFields = Object.entries(bill).filter(([key, value]) => !excluded.has(key) && hasValue(value)).map(([key, value]) => `<div class="border-b border-slate-100 py-3 last:border-0"><p class="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">${escapeHtml(key.replace(/([A-Z])/g, ' $1'))}</p><p class="mt-1 break-words text-xs font-semibold text-slate-800">${escapeHtml(typeof value === 'object' ? JSON.stringify(value) : value)}</p></div>`).join('');
+
+    document.getElementById('detailsModalTitle').textContent = `Bill #${bill.id}`;
+    document.getElementById('detailsModalContent').innerHTML = `
+      <div class="space-y-5">
+        <section class="overflow-hidden rounded-2xl border border-violet-100 bg-white"><div class="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 bg-violet-50/70 px-5 py-4"><div><p class="text-[10px] font-bold uppercase tracking-widest text-violet-500">Invoice overview</p><p class="mt-0.5 text-lg font-bold text-slate-900">₹${fmt(bill.total)}</p></div><span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-violet-700 shadow-sm">#${escapeHtml(bill.id)}</span></div><div class="grid grid-cols-1 px-5 sm:grid-cols-2 sm:gap-x-8">${fields || '<p class="py-5 text-xs text-slate-400">No additional bill details were saved.</p>'}</div></section>
+        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div class="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h4 class="text-xs font-bold uppercase tracking-wider text-slate-600">Items and rates</h4><span class="text-[10px] font-bold text-slate-400">${items.length} item${items.length === 1 ? '' : 's'}</span></div><div class="overflow-x-auto"><table class="w-full min-w-[520px] text-left text-xs"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400"><tr><th class="px-4 py-3">Item</th><th class="px-4 py-3 text-center">Qty</th><th class="px-4 py-3 text-right">Rate</th><th class="px-4 py-3 text-right">Amount</th></tr></thead><tbody>${itemRows}</tbody></table></div></section>
+        <section class="grid grid-cols-2 gap-3 sm:grid-cols-5"><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Subtotal</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.subtotal)}</p></div><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Discount</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.discount)}</p></div><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Advance</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.advance)}</p></div>${hasValue(bill.balance) ? `<div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Balance</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.balance)}</p></div>` : ''}<div class="rounded-xl bg-violet-600 p-3"><p class="text-[9px] font-bold uppercase text-violet-200">Invoice total</p><p class="mt-1 text-xs font-bold text-white">₹${fmt(bill.total)}</p></div></section>
+        ${extraFields ? `<section class="rounded-2xl border border-slate-200 bg-white p-5"><h4 class="mb-1 text-xs font-bold uppercase tracking-wider text-slate-600">Other saved details</h4><div class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">${extraFields}</div></section>` : ''}
+      </div>`;
+    document.getElementById('billDetailsModal').classList.remove('hidden');
+    document.getElementById('billDetailsModal').classList.add('flex');
+}
+
+function closeBillDetails() {
+    const modal = document.getElementById('billDetailsModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
 function toggleInvoiceAction(event, index) {
     event.stopPropagation();
     const menu = document.getElementById(`invoice-action-${index}`);
@@ -706,21 +774,92 @@ function closeInvoiceActions() {
 }
 
 function editOrPayBill(index) {
-    const bill = allBills[index];
-    if (!bill) return;
-    window.location.href = `viewdetailedbill.html?id=${bill.id}`;
+    showBillDetails(index);
 }
 
 function printInvoice(index) {
     const bill = allBills[index];
     if (!bill) return;
-    const rows = (bill.items || []).map(item => `<div class="row"><span>${item.name} × ${item.quantity}</span><strong>₹${fmt(Number(item.price || 0) * Number(item.quantity || 0))}</strong></div>`).join('');
     const printWindow = window.open('', '', 'width=380,height=640');
     if (!printWindow) return;
-    printWindow.document.write();
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Invoice #${bill.id}</title><style>@page{size:58mm auto;margin:0}body{margin:0}.receipt{width:58mm;padding:6px 6px 10px;box-sizing:border-box;font-family:monospace;font-size:12px;color:#000}.center{text-align:center}.bold{font-weight:bold}.items{margin-top:4px}.item{display:flex;margin:3px 0}.item-name{width:50%}.item-qty{width:20%;text-align:center}.item-price{width:30%;text-align:right}hr{border:0;border-top:1px solid #000;margin:6px 0}.total{text-align:right}.footer{font-size:8px;font-weight:700;margin-bottom:4px}.powered{font-size:10px;font-style:italic;border-top:1px dotted #000;padding-top:4px}</style></head><body>${buildInvoiceReceipt(bill)}</body></html>`);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => printWindow.print(), 300);
+}
+
+function buildInvoiceReceipt(bill) {
+    const items = (bill.items || []).map(item => {
+        const amount = Number(item.price || 0) * Number(item.quantity || 0);
+        return `<div class="item"><div class="item-name">${item.name || 'Item'}</div><div class="item-qty">${item.quantity || 0}</div><div class="item-price">₹${fmt(amount)}</div></div>`;
+    }).join('') || '<div class="center">No item details available</div>';
+    const delivery = bill.deliveryDate ? `<div class="bold">DELIVERY DATE: ${bill.deliveryDate}${bill.deliveryTime ? ` ${bill.deliveryTime}` : ''}</div>` : '';
+    return `<div class="receipt"><div class="center"><img src="/logo.jpeg" alt="Fruit'z" style="width:34mm;max-height:16mm;object-fit:contain;"></div><div class="center" style="font-size:11px;font-style:italic;">For Your Wellbeing</div><div class="center" style="font-size:11px;">FSSIC NO : 24552365210253</div><div class="center" style="font-size:11px;">Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">7006149827, 7889762496</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(bill.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Fruit'z billing software</div></div>`;
+}
+
+async function downloadInvoice(index) {
+    const bill = allBills[index];
+    if (!bill) return;
+    try {
+        if (!window.jspdf?.jsPDF) throw new Error('PDF library is unavailable');
+        const rows = bill.items || [];
+        const pageHeight = Math.max(125, 94 + rows.length * 6);
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [58, pageHeight] });
+        const left = 4;
+        const right = 54;
+        let y = 7;
+        const line = () => { doc.setDrawColor(0); doc.line(left, y, right, y); y += 4; };
+        const centered = (value, size = 7, style = 'normal') => { doc.setFont('courier', style); doc.setFontSize(size); doc.text(value, 29, y, { align: 'center' }); y += size * 0.45 + 1.2; };
+        const label = (value, style = 'normal') => { doc.setFont('courier', style); doc.setFontSize(7); doc.text(String(value).slice(0, 45), left, y); y += 4; };
+        const amount = (value, style = 'normal', size = 7) => { doc.setFont('courier', style); doc.setFontSize(size); doc.text(value, right, y, { align: 'right' }); y += 4; };
+
+        try {
+            const logo = new Image();
+            logo.src = '/logo.jpeg';
+            await new Promise((resolve, reject) => { logo.onload = resolve; logo.onerror = reject; });
+            const logoHeight = Math.min(14, logo.height * 30 / logo.width);
+            doc.addImage(logo, 'JPEG', 14, y, 30, logoHeight);
+            y += logoHeight + 2;
+        } catch (_) {
+            centered("FRUIT'Z", 13, 'bold');
+        }
+
+        centered('For Your Wellbeing', 7, 'italic');
+        centered('FSSIC NO : 24552365210253');
+        centered('Batamaloo, Srinagar');
+        centered('7006149827, 7889762496', 7, 'bold');
+        line();
+        label(`BILL: ${bill.id}`, 'bold');
+        label(`DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}`);
+        label(`CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}`);
+        label(`PHONE: ${bill.phone || 'N/A'}`);
+        if (bill.address) label(`ADDRESS: ${bill.address.toUpperCase()}`);
+        if (bill.deliveryDate) label(`DELIVERY: ${bill.deliveryDate} ${bill.deliveryTime || ''}`, 'bold');
+        line();
+        doc.setFont('courier', 'bold'); doc.setFontSize(7);
+        doc.text('Item', left, y); doc.text('Qty', 39, y, { align: 'center' }); doc.text('Price', right, y, { align: 'right' }); y += 4;
+        doc.setFont('courier', 'normal');
+        rows.forEach(item => {
+            const itemAmount = Number(item.price || 0) * Number(item.quantity || 0);
+            doc.text(String(item.name || 'Item').slice(0, 20), left, y);
+            doc.text(String(item.quantity || 0), 39, y, { align: 'center' });
+            doc.text(`Rs. ${fmt(itemAmount)}`, right, y, { align: 'right' });
+            y += 4;
+        });
+        line();
+        amount(`Subtotal: Rs. ${fmt(bill.subtotal)}`);
+        amount(`Discount: Rs. ${fmt(bill.discount)}`);
+        amount(`Advance Paid: Rs. ${fmt(bill.advance)}`, 'bold');
+        amount(`Balance: Rs. ${fmt(bill.total)}`, 'bold', 8);
+        line();
+        centered('Also on swiggy | zomato', 6, 'bold');
+        centered("powered by Fruit'z billing software", 6, 'italic');
+        doc.save(`Invoice_${bill.id}.pdf`);
+    } catch (error) {
+        console.error('Invoice download failed:', error);
+        alert('Could not download this invoice. Please try again.');
+    }
 }
 
 async function deleteInvoice(index) {
@@ -796,6 +935,15 @@ function getStatusBadgeStyle(statusText) {
     return 'bg-slate-100 text-slate-800 rounded-lg border border-slate-200 p-[3px]';
 }
 
+function getOrderTypeLabel(orderType) {
+    const types = {
+        'dine-in': 'Dine-In',
+        takeaway: 'Takeaway',
+        deliver: 'Delivery'
+    };
+    return types[String(orderType || '').toLowerCase()] || 'Dine-In';
+}
+
 async function loadSavedBills() {
   const mobileCont = document.getElementById('mobileListView');
   const desktopCont = document.getElementById('desktopTableBody');
@@ -862,6 +1010,7 @@ async function loadSavedBills() {
       const amount = fmt(b.total);
       const billStatus = b.status || b.Status || 'N/A';
       const badgeStyle = getStatusBadgeStyle(billStatus);
+      const orderType = getOrderTypeLabel(b.orderType);
 
       if (dayLabel !== lastLabel) {
           mobileCont.innerHTML += `
@@ -881,18 +1030,19 @@ async function loadSavedBills() {
             <div>
               <div class="font-bold text-slate-800">${customerName}</div>
               <div class="text-[10px] text-violet-600 font-medium">${b.phone || 'No phone number'}</div>
+              <div class="mt-1 text-[9px] font-bold uppercase text-indigo-600">${orderType}</div>
             </div>
             <div class="text-right">
               <div class="text-[10px] text-slate-400 font-medium">${displayDate}</div>
             </div>
           </div>
           <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span class="inline-block text-[9px] font-bold uppercase ${badgeStyle}">
+            <span class="inline-block text-[8px] font-bold uppercase ${badgeStyle}">
               ${billStatus}
             </span>
             <div class="flex items-center gap-2">
               <button onclick="showAmountBreakdown(${globalIndex})" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-semibold">Breakdown</button>
-              <button onclick="window.location.href='viewdetailedbill.html?id=${b.id}'" class="px-3 py-1 bg-violet-600 text-white rounded-lg font-semibold">View</button>
+              <button onclick="showBillDetails(${globalIndex})" class="px-3 py-1 bg-violet-600 text-white rounded-lg font-semibold">View</button>
             </div>
           </div>
         </div>`;
@@ -902,9 +1052,8 @@ async function loadSavedBills() {
           <td class="px-6 py-4 font-mono text-slate-900 font-semibold">#${b.id}</td>
           <td class="px-6 py-4 text-slate-900 font-semibold">${customerName}</td>
           <td class="px-6 py-4 text-violet-600 font-medium">${b.phone || 'N/A'}</td>
-          <td class="px-6 py-4 text-slate-500">${displayDate}</td>
           <td class="px-6 py-4">
-            <span class="inline-block text-[10px] font-bold uppercase ${badgeStyle}">
+            <span class="inline-block text-[9px] font-bold uppercase ${badgeStyle}">
               ${billStatus}
             </span>
           </td>
@@ -915,15 +1064,15 @@ async function loadSavedBills() {
           </td>
           <td class="px-6 py-4 text-center">
             <div class="flex items-center justify-center gap-2">
-              <button onclick="window.location.href='viewdetailedbill.html?id=${b.id}'" class="w-8 h-8 rounded-xl bg-violet-600 text-white shadow-sm transition flex items-center justify-center hover:bg-violet-700" title="View bill"><i class="fa-solid fa-eye text-xs"></i></button>
+              <button onclick="showBillDetails(${globalIndex})" class="w-8 h-8 rounded-xl bg-violet-600 text-white shadow-sm transition flex items-center justify-center hover:bg-violet-700" title="View bill"><i class="fa-solid fa-eye text-xs"></i></button>
               <div class="invoice-action">
                 <button onclick="toggleInvoiceAction(event, ${globalIndex})" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center" title="Actions"><i class="fa-solid fa-ellipsis-vertical text-xs"></i></button>
                 <div id="invoice-action-${globalIndex}" class="invoice-action-menu">
                   <button onclick="closeInvoiceActions();editOrPayBill(${globalIndex})" class="action-option text-violet-600 hover:bg-violet-50"><i class="fa-solid fa-eye"></i> View Bill</button>
-                  <button onclick="closeInvoiceActions();showAmountBreakdown(${globalIndex})" class="action-option text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-circle-info text-violet-500"></i> Details</button>
-                  <button onclick="closeInvoiceActions();editOrPayBill(${globalIndex})" class="action-option text-violet-600 hover:bg-slate-50"><i class="fa-solid fa-pen-to-square"></i> Edit / Pay</button>
-                  <button onclick="closeInvoiceActions();printInvoice(${globalIndex})" class="action-option text-emerald-600 hover:bg-emerald-50"><i class="fa-solid fa-print"></i> Print</button>
-                  <button onclick="closeInvoiceActions();deleteInvoice(${globalIndex})" class="action-option text-rose-600 hover:bg-rose-50 border-t border-slate-100"><i class="fa-solid fa-trash"></i> Delete</button>
+                  <button onclick="closeInvoiceActions();showAmountBreakdown(${globalIndex})" class="action-option text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-circle-info text-violet-500"></i> Payment Details</button>
+                  <button onclick="closeInvoiceActions();printInvoice(${globalIndex})" class="action-option text-emerald-600 hover:bg-emerald-50"><i class="fa-solid fa-print"></i> Print Invoice</button>
+                  <button onclick="closeInvoiceActions();downloadInvoice(${globalIndex})" class="action-option text-blue-600 hover:bg-blue-50"><i class="fa-solid fa-download"></i> Download Invoice</button>
+                  <button onclick="closeInvoiceActions();deleteInvoice(${globalIndex})" class="action-option text-rose-600 hover:bg-rose-50 border-t border-slate-100"><i class="fa-solid fa-trash"></i> Delete Invoice</button>
                 </div>
               </div>
             </div>
@@ -939,6 +1088,9 @@ window.addEventListener('click', function(event) {
     const modal = document.getElementById('breakdownModal');
     if (event.target === modal) {
         closeBreakdownModal();
+    }
+    if (event.target === document.getElementById('billDetailsModal')) {
+        closeBillDetails();
     }
     if (!event.target.closest('.invoice-action') && !event.target.closest('.top-slide-container')) {
         document.getElementById('topSlideMenu').classList.remove('show');

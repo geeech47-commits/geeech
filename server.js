@@ -751,7 +751,10 @@ app.patch('/api/bills/:id/cancel', async (req, res) => {
             { id: billId }, 
             { 
                 $set: { 
-                    orderStatus: orderStatus,          
+                    // Keep the two legacy status fields in sync. Older screens read
+                    // `Status`, while the billing screen reads `orderStatus`.
+                    orderStatus: orderStatus,
+                    Status: orderStatus,
                     cancellationNote: cancellationNote 
                 } 
             }

@@ -31,9 +31,9 @@ app.use(session({
 // 2. Serve Static Files
 app.use(express.static(path.join(__dirname, "public")));
 
-// 1. Main Home URL for customers (Loads your fruit baskets page)
+// Direct visitors to the staff sign-in page before they can access the dashboard.
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'userhomepage.html'));
+  res.redirect('/login.html');
 });
 
 // Render runs on Linux, where filename case matters. Keep the billing URL

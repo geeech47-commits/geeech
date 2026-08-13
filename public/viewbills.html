@@ -788,7 +788,7 @@ function buildInvoiceReceipt(bill) {
         return `<div class="item"><div class="item-name">${item.name || 'Item'}</div><div class="item-qty">${item.quantity || 0}</div><div class="item-price">₹${fmt(amount)}</div></div>`;
     }).join('') || '<div class="center">No item details available</div>';
     const delivery = bill.deliveryDate ? `<div class="bold">DELIVERY DATE: ${bill.deliveryDate}${bill.deliveryTime ? ` ${bill.deliveryTime}` : ''}</div>` : '';
-    return `<div class="receipt"><div class="center"><img src="/logo.jpeg" alt="Fruit'z" style="width:34mm;max-height:16mm;object-fit:contain;"></div><div class="center" style="font-size:11px;font-style:italic;">For Your Wellbeing</div><div class="center" style="font-size:11px;">FSSIC NO : 24552365210253</div><div class="center" style="font-size:11px;">Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">7006149827, 7889762496</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(bill.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Fruit'z billing software</div></div>`;
+    return `<div class="receipt"><div class="center"><img src="/logo.jpeg" alt="Fruit'z" style="width:38mm;max-height:18mm;object-fit:contain;"></div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(bill.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
 }
 
 async function downloadInvoice(index) {
@@ -812,8 +812,8 @@ async function downloadInvoice(index) {
             const logo = new Image();
             logo.src = '/logo.jpeg';
             await new Promise((resolve, reject) => { logo.onload = resolve; logo.onerror = reject; });
-            const logoHeight = Math.min(14, logo.height * 30 / logo.width);
-            doc.addImage(logo, 'JPEG', 14, y, 30, logoHeight);
+            const logoHeight = Math.min(16, logo.height * 34 / logo.width);
+            doc.addImage(logo, 'JPEG', 12, y, 34, logoHeight);
             y += logoHeight + 2;
         } catch (_) {
             centered("FRUIT'Z", 13, 'bold');

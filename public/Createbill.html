@@ -72,6 +72,10 @@
     .top-slide-menu { display: none; position: absolute; left: 0; top: calc(100% + 10px); z-index: 99999; width: 200px; background: #fff; border: 1px solid #e2e8f0; border-radius: .75rem; box-shadow: 0 20px 30px -10px rgba(15,23,42,.25); opacity: 0; transform: translateY(-8px); transition: opacity .2s ease, transform .2s ease; }
     .top-slide-menu.show { display: block; opacity: 1; transform: translateY(0); }
     .action-option { display: flex; align-items: center; gap: .65rem; width: 100%; padding: .75rem .9rem; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; transition: background .15s ease; }
+    @keyframes saveButtonPulse { 50% { transform: scale(.97); } }
+    @keyframes successPopupIn { from { opacity: 0; transform: scale(.92) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .save-button-loading { animation: saveButtonPulse .8s ease-in-out infinite; cursor: wait; }
+    .success-popup-in { animation: successPopupIn .25s ease-out both; }
 
     @media (max-width: 1024px) {
         #transactionsTable thead { display: none; }
@@ -98,6 +102,16 @@
             <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-0.5">System Status</p>
             <p class="text-xs font-bold uppercase tracking-wide text-emerald-400">Bill Saved Successfully!</p>
         </div>
+    </div>
+</div>
+
+<div id="billSavedModal" class="fixed inset-0 z-[300] hidden items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm" role="status" aria-live="polite">
+    <div class="success-popup-in w-full max-w-sm rounded-3xl border border-emerald-100 bg-white p-7 text-center shadow-2xl">
+        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 ring-8 ring-emerald-50"><i class="fa-solid fa-check text-2xl"></i></div>
+        <p class="mt-5 text-[10px] font-bold uppercase tracking-[.18em] text-emerald-600">Saved successfully</p>
+        <h2 class="mt-2 text-xl font-bold text-slate-900">Bill Saved Successfully!</h2>
+        <p id="savedBillNumber" class="mt-2 text-xs font-medium text-slate-500"></p>
+        <button onclick="hideBillSavedModal()" class="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-emerald-700">Done</button>
     </div>
 </div>
 
@@ -282,7 +296,7 @@
                     </div>
                     <div class="grid grid-cols-2 gap-3 mt-6">
                         <button onclick="clearBill()" class="py-3 px-2 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 text-xs uppercase">Clear</button>
-                        <button onclick="saveBill()" class="py-3 px-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-lg text-xs uppercase">Save Bill</button>
+                        <button id="saveBillBtn" onclick="saveBill()" class="py-3 px-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 shadow-lg text-xs uppercase transition-all">Save Bill</button>
                         <button onclick="printThermal()" class="py-3 px-4 col-span-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow-lg uppercase text-xs">Print Thermal Receipt</button>
                     </div>
                 </div>
@@ -481,6 +495,27 @@
     }
 
     const successSound = new Audio('success.mp3');
+    let isSavingBill = false;
+
+    function setSaveButtonState(isSaving) {
+        const button = document.getElementById('saveBillBtn');
+        if (!button) return;
+        button.disabled = isSaving;
+        button.classList.toggle('save-button-loading', isSaving);
+        button.classList.toggle('opacity-80', isSaving);
+        button.innerHTML = isSaving
+            ? '<i class="fa-solid fa-circle-notch fa-spin mr-1"></i> Saving...'
+            : 'Save Bill';
+    }
+
+    function showBillSavedModal(billId) {
+        document.getElementById('savedBillNumber').textContent = billId ? `Bill #${billId} has been added to your records.` : 'Your bill has been added to your records.';
+        document.getElementById('billSavedModal').classList.replace('hidden', 'flex');
+    }
+
+    function hideBillSavedModal() {
+        document.getElementById('billSavedModal').classList.replace('flex', 'hidden');
+    }
 
     successSound.addEventListener('error', (e) => {
         console.error("Audio file failed to load. Check path:", e);
@@ -794,6 +829,9 @@ async function executeKnotTagPrint() {
 
     async function saveBill() {
         if(billItems.length === 0) return alert("Empty Bill");
+        if (isSavingBill) return;
+        isSavingBill = true;
+        setSaveButtonState(true);
         const bill = getCurrentBillObj();
         try {
             const response = await fetch('/api/bills', {
@@ -808,27 +846,16 @@ async function executeKnotTagPrint() {
                 
                 await clearBill(); 
                 await loadSavedBills();
-
-                const toast = document.getElementById('toastNotification');
-                toast.classList.remove('hidden');
-                
-                void toast.offsetWidth; 
-                
-                toast.classList.remove('translate-y-2', 'opacity-0');
-                toast.classList.add('translate-y-0', 'opacity-100');
-
-                setTimeout(() => {
-                    toast.classList.remove('translate-y-0', 'opacity-100');
-                    toast.classList.add('translate-y-2', 'opacity-0');
-                    setTimeout(() => {
-                        toast.classList.add('hidden');
-                    }, 300);
-                }, 3000);
+                showBillSavedModal(bill.id);
 
             } else {
                 alert("Server rejected the bill payload. Check server logs.");
             }
         } catch (err) { alert("Server is not running!"); }
+        finally {
+            isSavingBill = false;
+            setSaveButtonState(false);
+        }
     }
 
     function toggleDropdown(event, index) {
@@ -902,12 +929,8 @@ async function executeKnotTagPrint() {
                             </button>
                             <div id="dropdown-${i}" class="dropdown-menu">
                                 <button onclick="closeAllDropdowns();showInfo(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Details</button>
-                                <button onclick="closeAllDropdowns();openEditModal(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-indigo-600 hover:bg-indigo-50 border-b">Edit / Pay</button>
-                                <button onclick="closeAllDropdowns();printSavedBill(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-50 border-b">Print</button>
+                                <button onclick="closeAllDropdowns();openEditModal(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-indigo-600 hover:bg-indigo-50 border-b">Edit / Pay</button>                                
                                 <button onclick="closeAllDropdowns();deleteBill('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50 border-b">Delete</button>
-                                <button onclick="closeAllDropdowns(); printKnotTag('${b.id}', '${formatDateDDMMYYYY(b.date)}', '${b.packagedOn ? b.packagedOn : (b.deliveryDate ? formatDateDDMMYYYY(b.deliveryDate) : formatDateDDMMYYYY(b.date))}', '${b.packagedTime ? b.packagedTime : (b.deliveryTime ? b.deliveryTime : '22:00')}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-amber-600 hover:bg-amber-50 ${isCancelled ? '' : 'border-b'}">
-                                    Sticky Tag
-                                </button>
                                 ${!isCancelled ? `<button onclick="closeAllDropdowns();cancelOrder('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50">Cancel Order</button>` : ''}
                             </div>
                         </div>

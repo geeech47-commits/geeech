@@ -1,0 +1,13 @@
+# Installed packages (recreate with `npm install`)
+node_modules/
+
+# Environment files may contain credentials
+.env
+.env.*
+!.env.example
+
+# Editor and operating system files
+.DS_Store
+Thumbs.db
+*.sublime-workspace
+*.sublime-project

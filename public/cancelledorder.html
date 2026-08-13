@@ -18,6 +18,7 @@
   <title>Fruit’z | Cancelled Orders Log</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
@@ -43,14 +44,22 @@
         #cancelledBillsList tr { display: block; background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1rem; margin-bottom: 0.5rem; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         #cancelledBillsList td { display: block; text-align: left !important; padding: 0.25rem 0; border: none; }
         #cancelledBillsList td:first-child { font-size: 1.1rem; border-bottom: 1px solid #f1f5f9; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
-        #cancelledBillsList td:last-child { position: absolute; top: 1rem; right: 1rem; }
+        #cancelledBillsList td:nth-child(6) { position: absolute; top: 1rem; right: 1rem; }
         #cancelledBillsList td::before { content: attr(data-label); font-weight: 700; text-transform: uppercase; font-size: 0.65rem; color: #94a3b8; display: block; margin-bottom: 2px; }
-        #cancelledBillsList td:last-child::before { display: none; }
+        #cancelledBillsList td:nth-child(6)::before { display: none; }
+        #cancelledBillsList td:last-child { margin-top: 0.75rem; padding: 0.75rem; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 0.75rem; }
     }
   </style>
 </head>
-<body class="min-h-screen text-slate-800">
-<header class="bg-white border-b px-4 lg:px-8 py-4 sticky top-0 z-50">
+<body class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden">
+<div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 z-30 hidden bg-slate-900/50 md:hidden"></div>
+<aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 flex h-full w-64 -translate-x-full flex-col justify-between border-r border-slate-200 bg-white text-slate-700 transition-transform duration-300 md:translate-x-0">
+  <div class="flex-1 overflow-y-auto"><div class="relative flex justify-center border-b border-slate-100 px-5 py-6"><button onclick="toggleSidebar()" class="absolute right-3 top-4 p-1 text-slate-400 md:hidden"><i class="fa-solid fa-xmark text-xl"></i></button><img src="logo.jpeg" alt="Gee-Ech" class="w-36 h-auto"></div><nav class="space-y-1 px-3 py-4"><a href="homepage.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-house mr-3 w-5 text-violet-500"></i>Dashboard</a><a href="createbill.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-calculator mr-3 w-5 text-blue-500"></i>New Bill</a><a href="punchorder.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-basket-shopping mr-3 w-5 text-indigo-500"></i>Pending Deliveries</a><a href="viewbills.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-file-invoice-dollar mr-3 w-5 text-emerald-500"></i>Invoices</a><a href="todaysorders.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-truck-fast mr-3 w-5 text-amber-500"></i>Delivered Orders</a><a href="editmenu.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-boxes-stacked mr-3 w-5 text-purple-500"></i>Menu Updation</a><a href="cancelledorder.html" class="flex items-center rounded-xl bg-rose-50 px-4 py-2.5 font-semibold text-rose-700"><i class="fa-solid fa-ban mr-3 w-5 text-rose-600"></i>Cancelled Orders</a></nav></div>
+  <div class="m-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><i class="fa-solid fa-user text-xs"></i></div><div><p class="text-xs font-bold text-slate-800">Operations</p><span class="text-[9px] font-bold uppercase text-violet-700">Billing desk</span></div></div>
+</aside>
+<div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+<header class="z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3.5 shadow-sm sm:px-8"><div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="p-1 text-slate-600 hover:text-violet-600 md:hidden" aria-label="Toggle menu"><i class="fa-solid fa-bars text-xl"></i></button><div><p class="text-[10px] font-bold uppercase tracking-[.16em] text-rose-600">Operations & Billing</p><h1 class="text-sm font-bold text-slate-900">Cancelled Orders</h1></div></div><div class="flex items-center gap-3"><div class="hidden sm:flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold"><span class="text-slate-500">Logged in as:</span><span id="headerUsername" class="capitalize font-bold text-violet-700">User</span></div><span class="hidden rounded-xl bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 sm:inline-flex"><i class="fa-solid fa-ban mr-1.5"></i><span id="headerCancelledCount">0 Cancelled</span></span><a href="createbill.html" class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-3.5 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-violet-700"><i class="fa-solid fa-plus text-[10px]"></i><span class="hidden sm:inline">New Bill</span></a></div></header>
+<header class="hidden bg-white border-b px-4 lg:px-8 py-4 sticky top-0 z-50">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3">
             <div class="bg-indigo-600 text-white p-2 rounded-lg">
@@ -78,7 +87,7 @@
     </div>
 </header>
   
-<main class="max-w-[1600px] mx-auto p-4 lg:p-8 space-y-6 bg-white">
+<main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
             <h2 class="text-l font-bold text-slate-800">Cancelled Orders</h2>
@@ -107,16 +116,16 @@
             <table id="cancelledTable" class="w-full text-left border-collapse">
                 <thead>
                     <tr class="text-slate-400 text-xs uppercase font-bold border-b">
-                        <th class="px-4 py-4">Bill No</th>
-                        <th class="px-4 py-4">Customer Name</th>
-                        <th class="px-4 py-4">Phone Number</th>
-                        <th class="px-4 py-4">Delivery Address</th>
-                        <th class="px-4 py-4">Cancellation Note</th>
-                        <th class="px-4 py-4 text-center">Total Cancellations</th>
-                        <th class="px-4 py-4 text-center">Actions</th>
+                        <th class="px-3 py-3">Bill No</th>
+                        <th class="px-3 py-3">Customer Name</th>
+                        <th class="px-3 py-3">Phone Number</th>
+                        <th class="px-3 py-3">Delivery Address</th>
+                        <th class="px-3 py-3 text-center">Total Cancellations</th>
+                        <th class="px-3 py-3 text-center">Actions</th>
+                        <th class="px-3 py-3">Cancellation Note</th>
                     </tr>
                 </thead>
-                <tbody id="cancelledBillsList" class="text-sm divide-y divide-slate-50">
+                <tbody id="cancelledBillsList" class="text-xs divide-y divide-slate-50">
                     <tr>
                         <td colspan="7" class="text-center py-10 text-slate-400 font-bold uppercase tracking-wider text-xs">
                             Loading cancelled orders....
@@ -127,6 +136,7 @@
         </div>
     </section>
 </main>
+</div>
 
 <div id="infoModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
     <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
@@ -146,6 +156,11 @@
     let cancellationCountMap = {}; 
 
     function fmt(n) { return Number(n).toFixed(2); }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        document.getElementById('sidebarOverlay').classList.toggle('hidden');
+    }
 
     function toggleDropdown(event, index) {
         event.stopPropagation();
@@ -180,6 +195,7 @@
             });
 
             document.getElementById('cancelledCount').textContent = cancelledBills.length;
+            document.getElementById('headerCancelledCount').textContent = `${cancelledBills.length} Cancelled`;
             renderTableRows(cancelledBills);
 
         } catch (err) {
@@ -212,34 +228,35 @@
 
             return `
             <tr class="hover:bg-slate-50 border-b">
-                <td data-label="Bill ID" class="px-4 py-4 font-mono font-bold text-indigo-600">${b.id}</td>
-                <td data-label="Customer Name" class="px-4 py-4 font-bold uppercase text-slate-800">
+                <td data-label="Bill ID" class="px-3 py-3 font-mono text-[11px] font-bold text-indigo-600">${b.id}</td>
+                <td data-label="Customer Name" class="px-3 py-3 text-[11px] font-bold uppercase text-slate-800">
                     ${b.customer}
                     <span class="text-[9px] font-black bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded ml-1 tracking-wide">CANCELLED</span>
                 </td>
-                <td data-label="Phone Number" class="px-4 py-4 font-semibold text-slate-700">${b.phone || 'N/A'}</td>
-                <td data-label="Delivery Address" class="px-4 py-4 text-xs font-medium uppercase text-slate-600 truncate max-w-[180px]" title="${b.address || ''}">
+                <td data-label="Phone Number" class="px-3 py-3 text-[11px] font-semibold text-slate-700">${b.phone || 'N/A'}</td>
+                <td data-label="Delivery Address" class="max-w-[160px] truncate px-3 py-3 text-[10px] font-medium uppercase text-slate-600" title="${b.address || ''}">
                     ${b.address || 'N/A'}
                 </td>
-                <td data-label="Cancellation Note" class="px-4 py-4 text-xs">
-                    <span class="text-[10px] text-rose-600 font-bold tracking-wide block bg-rose-50 px-2 py-1 rounded border border-rose-100 max-w-max uppercase">
-                        NOTE: ${b.cancellationNote ? b.cancellationNote.toUpperCase() : 'NO NOTE PROVIDED'}
-                    </span>
-                </td>
-                <td data-label="Total Cancelled" class="px-4 py-4 text-center">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <td data-label="Total Cancelled" class="px-3 py-3 text-center">
+                    <span class="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
                         ${customerTotalCancellations}
                     </span>
                 </td>
-                <td class="px-4 py-4 text-center">
+                <td class="px-3 py-3 text-center">
                     <div class="action-dropdown">
-                        <button onclick="toggleDropdown(event, ${i})" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200">
+                        <button onclick="toggleDropdown(event, ${i})" class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-200">
                             Action
                         </button>
                         <div id="dropdown-${i}" class="dropdown-menu">
                             <button onclick="showInfo('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Details</button>
                             <button onclick="deleteBill('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50">Delete Permanently</button>
                         </div>
+                    </div>
+                </td>
+                <td data-label="Cancellation Note" class="px-3 py-3 text-xs align-top">
+                    <div class="min-w-[170px] max-w-[220px] rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2">
+                        <p class="text-[9px] font-bold uppercase tracking-wider text-rose-500">Reason</p>
+                        <p class="mt-1 break-words text-[11px] font-semibold leading-relaxed text-rose-800">${b.cancellationNote ? b.cancellationNote.toUpperCase() : 'NO NOTE PROVIDED'}</p>
                     </div>
                 </td>
             </tr>`;

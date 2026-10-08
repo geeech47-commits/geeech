@@ -631,6 +631,43 @@ app.post('/api/menu', async (req, res) => {
     } catch (err) { res.status(500).send(err); }
 });
 
+app.put('/api/menu/bulk', async (req, res) => {
+    try {
+        const items = req.body?.items;
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: 'A non-empty items array is required.' });
+        }
+        const operations = items.map(item => {
+            const price = Number(item.price);
+            if (!item || !mongoose.isValidObjectId(item._id) || typeof item.name !== 'string' || !item.name.trim() || typeof item.category !== 'string' || !item.category.trim() || !Number.isFinite(price) || price < 0) {
+                throw new Error('Each item needs a valid id, name, category, and non-negative price.');
+            }
+            return { updateOne: { filter: { _id: item._id }, update: { $set: { name: item.name.trim(), category: item.category.trim(), price } } } };
+        });
+        const result = await Menu.bulkWrite(operations, { ordered: true });
+        if (result.matchedCount !== items.length) return res.status(404).json({ error: 'One or more menu items were not found.' });
+        res.json({ success: true, updatedCount: result.modifiedCount });
+    } catch (err) {
+        const status = err.message.startsWith('Each item') ? 400 : 500;
+        res.status(status).json({ error: err.message });
+    }
+});
+
+app.put('/api/menu/:id', async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid menu item id.' });
+        const { name, category, price } = req.body;
+        const numericPrice = Number(price);
+        if (typeof name !== 'string' || !name.trim() || typeof category !== 'string' || !category.trim() || price === '' || !Number.isFinite(numericPrice) || numericPrice < 0) {
+            return res.status(400).json({ error: 'A name, category, and non-negative price are required.' });
+        }
+        const updatedItem = await Menu.findByIdAndUpdate(req.params.id, { $set: { name: name.trim(), category: category.trim(), price: numericPrice } }, { new: true, runValidators: true });
+        if (!updatedItem) return res.status(404).json({ error: 'Menu item not found.' });
+        res.json(updatedItem);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update menu item.' });
+    }
+});
 app.delete('/api/menu/:id', async (req, res) => {
     try {
         await Menu.findByIdAndDelete(req.params.id);

@@ -706,7 +706,7 @@ async function executeKnotTagPrint() {
         categoryStack.innerHTML = categories.map(cat => {
             const isActive = selectedCategory === cat;
             const activeClass = isActive ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200';
-            return `<button onclick="selectCategory('${cat}')" class="w-full text-left p-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all truncate ${activeClass}">${cat}</button>`;
+            return `<button onclick="selectCategory('${cat}')" class="flex w-full items-center justify-center rounded-xl p-2.5 text-center text-[11px] font-bold uppercase tracking-wider transition-all truncate ${activeClass}">${cat}</button>`;
         }).join('');
 
         const colors = ['bg-purple-700 hover:bg-purple-800', 'bg-blue-600 hover:bg-blue-800', 'bg-green-600 hover:bg-green-800', 'bg-orange-400 hover:bg-orange-500', 'bg-yellow-400', 'bg-red-500 hover:bg-red-800', 'bg-pink-500 hover:bg-pink-800'];
@@ -717,7 +717,7 @@ async function executeKnotTagPrint() {
             
             const colorClass = colors[i % colors.length];
             const textColor = (colorClass.includes('yellow')) ? 'text-slate-900' : 'text-white';
-            return `<div onclick="quickAdd(${i})" class="${colorClass} rounded-xl p-2.5 cursor-pointer transition-all shadow-md transform active:scale-95"><p class="font-bold ${textColor} text-[11px] uppercase tracking-wide truncate">${m.name}</p><p class="text-[9px] ${textColor} opacity-90 font-black">₹${parseFloat(m.price).toFixed(2)}</p></div>`;
+            return `<div onclick="quickAdd(${i})" class="${colorClass} flex flex-col items-center justify-center rounded-xl p-2.5 text-center cursor-pointer transition-all shadow-md transform active:scale-95"><p class="w-full font-bold ${textColor} text-[11px] uppercase tracking-wide truncate">${m.name}</p><p class="text-[9px] ${textColor} opacity-90 font-black">₹${parseFloat(m.price).toFixed(2)}</p></div>`;
         }).filter(Boolean).join('');
 
         document.getElementById('selectItem').innerHTML = `<option value="">Select...</option>` + menu.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');

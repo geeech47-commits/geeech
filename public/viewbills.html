@@ -424,6 +424,13 @@
                         <option value="delivery pending">Delivery Pending</option>
                       </select>
                     </div>
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
+                      <select id="paymentFilter" onchange="loadSavedBills()" class="bg-transparent outline-none cursor-pointer text-slate-700">
+                        <option value="">All Payments</option>
+                        <option value="paid">Paid</option>
+                        <option value="unpaid">Unpaid</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div class="flex items-center gap-2">
@@ -667,6 +674,7 @@ function clearFilters() {
     document.getElementById('searchBills').value = '';
     document.getElementById('dateFilter').value = '';
     document.getElementById('statusFilter').value = '';
+    document.getElementById('paymentFilter').value = '';
     document.getElementById('dateLabel').innerText = "Custom Date";
     loadSavedBills();
 }
@@ -978,6 +986,7 @@ async function loadSavedBills() {
   const search = document.getElementById('searchBills').value.toLowerCase();
   const dateFilterValue = document.getElementById('dateFilter').value;
   const statusFilterValue = document.getElementById('statusFilter').value;
+  const paymentFilterValue = document.getElementById('paymentFilter').value;
 
   try {
     const res = await fetch('/api/bills');
@@ -1010,7 +1019,11 @@ async function loadSavedBills() {
           matchesStatus = bStatus.includes(statusFilterValue.toLowerCase());
       }
 
-      return matchesSearch && matchesDate && matchesStatus;
+      const due = Math.max(0, Number((b.paymentStatus ? (b.balance ?? b.total) : b.total) || 0));
+      const paymentStatus = b.paymentStatus || (due <= 0.005 ? 'paid' : 'unpaid');
+      const matchesPayment = !paymentFilterValue || paymentStatus === paymentFilterValue;
+
+      return matchesSearch && matchesDate && matchesStatus && matchesPayment;
     });
 
     document.getElementById('billCount').textContent = filteredBillsCache.length;
@@ -1035,9 +1048,15 @@ async function loadSavedBills() {
       const customerName = (b.customer || "Walk-in");
       const displayDate = formatDisplayDate(b.date);
       const dayLabel = getDayLabel(b.date);
-      const amount = fmt(b.total);
+      const saleAmount = Number(b.saleTotal ?? Math.max(0, Number(b.subtotal || 0) - Number(b.discount || 0))) || 0;
+      const amount = fmt(saleAmount);
       const billStatus = b.status || b.Status || 'N/A';
       const badgeStyle = getStatusBadgeStyle(billStatus);
+      const due = Math.max(0, Number((b.paymentStatus ? (b.balance ?? b.total) : b.total) || 0));
+      const paymentStatus = b.paymentStatus || (due <= 0.005 ? 'paid' : 'unpaid');
+      const paymentBadge = paymentStatus === 'paid'
+        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        : 'bg-amber-50 text-amber-700 border-amber-200';
       const orderType = getOrderTypeLabel(b.orderType);
 
       if (dayLabel !== lastLabel) {
@@ -1061,6 +1080,7 @@ async function loadSavedBills() {
                   <button onclick="closeInvoiceActions();showAmountBreakdown(${globalIndex})" class="action-option text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-circle-info text-violet-500"></i> Payment Details</button>
                   <button onclick="closeInvoiceActions();printInvoice(${globalIndex})" class="action-option text-emerald-600 hover:bg-emerald-50"><i class="fa-solid fa-print"></i> Print Invoice</button>
                   <button onclick="closeInvoiceActions();downloadInvoice(${globalIndex})" class="action-option text-blue-600 hover:bg-blue-50"><i class="fa-solid fa-download"></i> Download Invoice</button>
+                  <button onclick="closeInvoiceActions();setInvoicePaymentStatus(${globalIndex}, '${paymentStatus === 'paid' ? 'unpaid' : 'paid'}')" class="action-option ${paymentStatus === 'paid' ? 'text-amber-700 hover:bg-amber-50' : 'text-emerald-700 hover:bg-emerald-50'}"><i class="fa-solid ${paymentStatus === 'paid' ? 'fa-clock' : 'fa-circle-check'}"></i> Mark ${paymentStatus === 'paid' ? 'Unpaid' : 'Paid'}</button>
                   <button onclick="closeInvoiceActions();deleteInvoice(${globalIndex})" class="action-option text-rose-600 hover:bg-rose-50 border-t border-slate-100"><i class="fa-solid fa-trash"></i> Delete Invoice</button>
                 </div>
               </div>
@@ -1080,6 +1100,7 @@ async function loadSavedBills() {
             <span class="inline-block text-[8px] font-bold uppercase ${badgeStyle}">
               ${billStatus}
             </span>
+            <span class="inline-flex items-center rounded-md border px-2 py-1 text-[8px] font-bold uppercase ${paymentBadge}">${paymentStatus}</span>
             <div class="flex items-center gap-2">
               <button onclick="showAmountBreakdown(${globalIndex})" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-semibold">Breakdown</button>
               <button onclick="showBillDetails(${globalIndex})" class="px-3 py-1 bg-violet-600 text-white rounded-lg font-semibold">View</button>
@@ -1096,6 +1117,7 @@ async function loadSavedBills() {
             <span class="inline-block text-[9px] font-bold uppercase ${badgeStyle}">
               ${billStatus}
             </span>
+            <span class="mt-1 inline-flex rounded-md border px-2 py-1 text-[8px] font-bold uppercase ${paymentBadge}">${paymentStatus}</span>
           </td>
           <td class="px-6 py-4 text-right">
             <button onclick="showAmountBreakdown(${globalIndex})" class="bg-transparent border-none p-0 outline-none font-bold text-slate-900 text-right cursor-pointer hover:text-violet-600 transition-colors">
@@ -1112,6 +1134,7 @@ async function loadSavedBills() {
                   <button onclick="closeInvoiceActions();showAmountBreakdown(${globalIndex})" class="action-option text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-circle-info text-violet-500"></i> Payment Details</button>
                   <button onclick="closeInvoiceActions();printInvoice(${globalIndex})" class="action-option text-emerald-600 hover:bg-emerald-50"><i class="fa-solid fa-print"></i> Print Invoice</button>
                   <button onclick="closeInvoiceActions();downloadInvoice(${globalIndex})" class="action-option text-blue-600 hover:bg-blue-50"><i class="fa-solid fa-download"></i> Download Invoice</button>
+                  <button onclick="closeInvoiceActions();setInvoicePaymentStatus(${globalIndex}, '${paymentStatus === 'paid' ? 'unpaid' : 'paid'}')" class="action-option ${paymentStatus === 'paid' ? 'text-amber-700 hover:bg-amber-50' : 'text-emerald-700 hover:bg-emerald-50'}"><i class="fa-solid ${paymentStatus === 'paid' ? 'fa-clock' : 'fa-circle-check'}"></i> Mark ${paymentStatus === 'paid' ? 'Unpaid' : 'Paid'}</button>
                   <button onclick="closeInvoiceActions();deleteInvoice(${globalIndex})" class="action-option text-rose-600 hover:bg-rose-50 border-t border-slate-100"><i class="fa-solid fa-trash"></i> Delete Invoice</button>
                 </div>
               </div>
@@ -1121,6 +1144,25 @@ async function loadSavedBills() {
     });
   } catch(e) {
     console.error(e);
+  }
+}
+
+async function setInvoicePaymentStatus(index, paymentStatus) {
+  const bill = allBills[index];
+  if (!bill) return;
+  const action = paymentStatus === 'paid' ? 'mark this bill as paid' : 'mark this bill as unpaid';
+  if (!confirm(`Are you sure you want to ${action}?`)) return;
+  try {
+    const response = await fetch(`/api/bills/${encodeURIComponent(bill.id)}/payment`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentStatus })
+    });
+    if (!response.ok) throw new Error('Payment status update failed');
+    await loadSavedBills();
+  } catch (error) {
+    console.error(error);
+    alert('Could not update this bill payment status. Please try again.');
   }
 }
 

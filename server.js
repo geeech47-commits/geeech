@@ -103,6 +103,12 @@ const BillSchema = new mongoose.Schema({
     subtotal: Number,
     discount: Number,
     advance: Number,
+    saleTotal: Number,
+    paymentStatus: {
+        type: String,
+        enum: ['paid', 'unpaid'],
+        default: 'paid'
+    },
     deliveryDate: String,
     deliveryTime: String,
     items: Array,
@@ -370,14 +376,21 @@ app.get('/api/bills/:id', async (req, res) => {
 app.post('/api/bills', async (req, res) => {
     try {
         const data = req.body;
-        const total = parseFloat(data.total) || 0;
-        const advance = parseFloat(data.advance) || 0;
-        
-        let balance = total - advance;
-        
-        if (data.orderSource === "ONLINE") {
-            balance = 0;
-        }
+        const requestedTotal = Number.parseFloat(data.total) || 0;
+        const requestedAdvance = Math.max(0, Number.parseFloat(data.advance) || 0);
+        const subtotal = Number.parseFloat(data.subtotal);
+        const discount = Number.parseFloat(data.discount) || 0;
+        const saleTotal = Number.isFinite(subtotal)
+            ? Math.max(0, subtotal - discount)
+            : Math.max(0, requestedTotal + requestedAdvance);
+        const requestedPaymentStatus = String(data.paymentStatus || 'paid').toLowerCase();
+        const advance = data.orderSource === 'ONLINE'
+            ? saleTotal
+            : Math.min(saleTotal, requestedAdvance);
+        const balance = Math.max(0, saleTotal - advance);
+        const paymentStatus = ['paid', 'unpaid'].includes(requestedPaymentStatus)
+            ? requestedPaymentStatus
+            : 'paid';
       // Determine order status based on order type
         let initialStatus = 'complete'; // Default for dine-in
         const orderType = data.orderType || 'indine'; // <-- Bug: mismatch with 'dine-in'
@@ -391,17 +404,61 @@ app.post('/api/bills', async (req, res) => {
             ...data,
             orderType: data.orderType || 'dine-in', 
             Status: initialStatus, // <-- Only updating 'Status', leaving 'orderStatus' default
-            total: total,
             advance: advance,
-            balance: balance 
+            saleTotal,
+            paymentStatus,
+            total: balance,
+            balance
         });
         
         await newBill.save();
-        res.json({ success: true });
+        res.json({ success: true, billId: newBill.id, paymentStatus, saleTotal, balance });
     } catch (err) { 
         res.status(500).send(err); 
     }
 });
+
+app.patch('/api/bills/:id/payment', async (req, res) => {
+    try {
+        const requestedStatus = String(req.body.paymentStatus || '').toLowerCase();
+        if (!['paid', 'unpaid'].includes(requestedStatus)) {
+            return res.status(400).json({ error: 'Payment status must be paid or unpaid.' });
+        }
+
+        const bill = await Bill.findOne({ id: req.params.id });
+        if (!bill) return res.status(404).json({ error: 'Bill not found.' });
+
+        const storedSaleTotal = Number(bill.saleTotal);
+        const subtotal = Number(bill.subtotal);
+        const discount = Number(bill.discount) || 0;
+        const saleTotal = Number.isFinite(storedSaleTotal)
+            ? storedSaleTotal
+            : Number.isFinite(subtotal)
+                ? Math.max(0, subtotal - discount)
+                : Math.max(0, Number(bill.total || 0) + Number(bill.advance || 0));
+        const advance = requestedStatus === 'paid' ? saleTotal : 0;
+        const balance = Math.max(0, saleTotal - advance);
+
+        bill.saleTotal = saleTotal;
+        bill.advance = advance;
+        bill.total = balance;
+        bill.balance = balance;
+        bill.paymentStatus = requestedStatus;
+        await bill.save();
+
+        await new History({
+            bill_id: bill.id,
+            edit_date: new Date().toLocaleString(),
+            change_log: `Payment status changed to ${requestedStatus.toUpperCase()}`
+        }).save();
+
+        res.json({ success: true, paymentStatus: requestedStatus, saleTotal, balance });
+    } catch (err) {
+        console.error('Failed to update bill payment status:', err);
+        res.status(500).json({ error: 'Failed to update payment status.' });
+    }
+});
+
 // Example Express Backend Route for Updating Order Status
 app.patch('/api/bills/:id/status', async (req, res) => {
     try {
@@ -580,7 +637,29 @@ app.put('/api/bills/:id', async (req, res) => {
     try {
         const billId = req.params.id; 
         const updateData = req.body;
-        
+
+        if (Object.hasOwn(updateData, 'advance') || Object.hasOwn(updateData, 'paymentStatus')) {
+            const existingBill = await Bill.findById(billId);
+            if (!existingBill) return res.status(404).send('Bill not found');
+
+            const storedSaleTotal = Number(existingBill.saleTotal);
+            const subtotal = Number(existingBill.subtotal);
+            const discount = Number(existingBill.discount) || 0;
+            const saleTotal = Number.isFinite(storedSaleTotal)
+                ? storedSaleTotal
+                : Number.isFinite(subtotal)
+                    ? Math.max(0, subtotal - discount)
+                    : Math.max(0, Number(existingBill.total || 0) + Number(existingBill.advance || 0));
+            const paidAmount = Math.min(saleTotal, Math.max(0, Number(updateData.advance) || 0));
+            const balance = Math.max(0, saleTotal - paidAmount);
+
+            updateData.saleTotal = saleTotal;
+            updateData.advance = paidAmount;
+            updateData.total = balance;
+            updateData.balance = balance;
+            updateData.paymentStatus = balance <= 0.005 ? 'paid' : 'unpaid';
+        }
+
         const updatedBill = await Bill.findByIdAndUpdate(billId, updateData, { returnDocument: 'after' });
         
         if (!updatedBill) {

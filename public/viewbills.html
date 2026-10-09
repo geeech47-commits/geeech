@@ -776,28 +776,33 @@ function printInvoice(index) {
     if (!bill) return;
     const printWindow = window.open('', '', 'width=380,height=640');
     if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Invoice #${bill.id}</title><style>@page{size:58mm auto;margin:0}body{margin:0}.receipt{width:58mm;padding:6px 6px 10px;box-sizing:border-box;font-family:monospace;font-size:12px;color:#000}.center{text-align:center}.bold{font-weight:bold}.items{margin-top:4px}.item{display:flex;margin:3px 0}.item-name{width:50%}.item-qty{width:20%;text-align:center}.item-price{width:30%;text-align:right}hr{border:0;border-top:1px solid #000;margin:6px 0}.total{text-align:right}.footer{font-size:8px;font-weight:700;margin-bottom:4px}.powered{font-size:10px;font-style:italic;border-top:1px dotted #000;padding-top:4px}</style></head><body>${buildInvoiceReceipt(bill)}</body></html>`);
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Invoice #${bill.id}</title><style>@page{size:58mm auto;margin:0}body{margin:0}.receipt{width:58mm;padding:6px 6px 10px;box-sizing:border-box;font-family:monospace;font-size:12px;color:#000;text-rendering:geometricPrecision}.receipt-logo{display:block;width:38mm;height:auto;max-width:100%;max-height:34mm;object-fit:contain;margin:0 auto 2px;image-rendering:auto}.center{text-align:center}.bold{font-weight:bold}.items{margin-top:4px}.item{display:flex;margin:3px 0}.item-name{width:50%}.item-qty{width:20%;text-align:center}.item-price{width:30%;text-align:right}hr{border:0;border-top:1px solid #000;margin:6px 0}.total{text-align:right}.footer{font-size:8px;font-weight:700;margin-bottom:4px}.powered{font-size:10px;font-style:italic;border-top:1px dotted #000;padding-top:4px}</style></head><body>${buildInvoiceReceipt(bill)}</body></html>`);
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => printWindow.print(), 300);
+    const receiptLogo = printWindow.document.querySelector('.receipt-logo');
+    const printReceipt = () => { printWindow.focus(); setTimeout(() => printWindow.print(), 100); };
+    if (!receiptLogo || receiptLogo.complete) printReceipt();
+    else { receiptLogo.onload = printReceipt; receiptLogo.onerror = printReceipt; }
 }
-
 function buildInvoiceReceipt(bill) {
     const items = (bill.items || []).map(item => {
-        const amount = Number(item.price || 0) * Number(item.quantity || 0);
-        return `<div class="item"><div class="item-name">${item.name || 'Item'}</div><div class="item-qty">${item.quantity || 0}</div><div class="item-price">₹${fmt(amount)}</div></div>`;
+        const quantity = Number(item.quantity || item.qty) || 1;
+        const sellingPrice = Number(item.price) || 0;
+        const menuPrice = Number(item.basePrice ?? sellingPrice) || 0;
+        const savings = Math.max(0, menuPrice - sellingPrice) * quantity;
+        const priceDetails = menuPrice > sellingPrice ? `<div style="font-size:10px;margin:-1px 0 3px 0;">Menu ₹${fmt(menuPrice)} | Your price ₹${fmt(sellingPrice)}<br><strong>You saved: ₹${fmt(savings)}</strong></div>` : '';
+        return `<div class="item"><div class="item-name">${item.name || 'Item'}</div><div class="item-qty">${quantity}</div><div class="item-price">₹${fmt(sellingPrice * quantity)}</div></div>${priceDetails}`;
     }).join('') || '<div class="center">No item details available</div>';
     const delivery = bill.deliveryDate ? `<div class="bold">DELIVERY DATE: ${bill.deliveryDate}${bill.deliveryTime ? ` ${bill.deliveryTime}` : ''}</div>` : '';
-    return `<div class="receipt"><div class="center"><img src="/logo.jpeg" alt="Fruit'z" style="width:38mm;max-height:18mm;object-fit:contain;"></div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(bill.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
+    return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic;">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(bill.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
 }
 
-async function downloadInvoice(index) {
+async function downloadInvoice(index, printInstead = false, printWindow = null) {
     const bill = allBills[index];
     if (!bill) return;
     try {
         if (!window.jspdf?.jsPDF) throw new Error('PDF library is unavailable');
         const rows = bill.items || [];
-        const pageHeight = Math.max(125, 94 + rows.length * 6);
+        const pageHeight = Math.max(135, 104 + rows.length * 12);
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: [58, pageHeight] });
         const left = 4;
@@ -810,15 +815,16 @@ async function downloadInvoice(index) {
 
         try {
             const logo = new Image();
-            logo.src = '/logo.jpeg';
+            logo.src = '/invoice-logo.jpg';
             await new Promise((resolve, reject) => { logo.onload = resolve; logo.onerror = reject; });
-            const logoHeight = Math.min(16, logo.height * 34 / logo.width);
-            doc.addImage(logo, 'JPEG', 12, y, 34, logoHeight);
+            const logoHeight = Math.min(34, logo.height * 38 / logo.width);
+            doc.addImage(logo, 'JPEG', 10, y, 38, logoHeight);
             y += logoHeight + 2;
         } catch (_) {
             centered("FRUIT'Z", 13, 'bold');
         }
 
+        centered('A UNIT OF GEE ECH BAKERS', 6, 'italic');
         centered('For Your Wellbeing', 7, 'italic');
         centered('FSSIC NO : 24552365210253');
         centered('Batamaloo, Srinagar');
@@ -835,11 +841,19 @@ async function downloadInvoice(index) {
         doc.text('Item', left, y); doc.text('Qty', 39, y, { align: 'center' }); doc.text('Price', right, y, { align: 'right' }); y += 4;
         doc.setFont('courier', 'normal');
         rows.forEach(item => {
-            const itemAmount = Number(item.price || 0) * Number(item.quantity || 0);
+            const quantity = Number(item.quantity || item.qty) || 1;
+            const sellingPrice = Number(item.price) || 0;
+            const menuPrice = Number(item.basePrice ?? sellingPrice) || 0;
+            const savings = Math.max(0, menuPrice - sellingPrice) * quantity;
             doc.text(String(item.name || 'Item').slice(0, 20), left, y);
-            doc.text(String(item.quantity || 0), 39, y, { align: 'center' });
-            doc.text(`Rs. ${fmt(itemAmount)}`, right, y, { align: 'right' });
+            doc.text(String(quantity), 39, y, { align: 'center' });
+            doc.text(`Rs. ${fmt(sellingPrice * quantity)}`, right, y, { align: 'right' });
             y += 4;
+            if (menuPrice > sellingPrice) {
+                doc.setFontSize(6); doc.text(`Menu Rs. ${fmt(menuPrice)} | Your price Rs. ${fmt(sellingPrice)}`, left, y); y += 3;
+                doc.setFont('courier', 'bold'); doc.text(`You saved: Rs. ${fmt(savings)}`, left, y);
+                doc.setFont('courier', 'normal'); y += 4;
+            }
         });
         line();
         amount(`Subtotal: Rs. ${fmt(bill.subtotal)}`);
@@ -849,7 +863,14 @@ async function downloadInvoice(index) {
         line();
         centered('Also on swiggy | zomato', 6, 'bold');
         centered("powered by Fruit'z billing software", 6, 'italic');
-        doc.save(`Invoice_${bill.id}.pdf`);
+        if (printInstead) {
+            if (typeof doc.autoPrint === 'function') doc.autoPrint();
+            const printUrl = URL.createObjectURL(doc.output('blob'));
+            if (!printWindow) { URL.revokeObjectURL(printUrl); return; }
+            printWindow.location.href = printUrl;
+        } else {
+            doc.save(`Invoice_${bill.id}.pdf`);
+        }
     } catch (error) {
         console.error('Invoice download failed:', error);
         alert('Could not download this invoice. Please try again.');

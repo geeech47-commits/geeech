@@ -111,7 +111,7 @@
         <p class="mt-5 text-[10px] font-bold uppercase tracking-[.18em] text-emerald-600">Saved successfully</p>
         <h2 class="mt-2 text-xl font-bold text-slate-900">Bill Saved Successfully!</h2>
         <p id="savedBillNumber" class="mt-2 text-xs font-medium text-slate-500"></p>
-        <button onclick="hideBillSavedModal()" class="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-emerald-700">Done</button>
+        <div class="mt-6 grid grid-cols-2 gap-3"><button onclick="printSavedInvoice()" class="rounded-xl bg-emerald-600 px-3 py-3 text-xs font-bold text-white"><i class="fa-solid fa-print"></i> Print</button><button onclick="downloadSavedInvoice()" class="rounded-xl bg-blue-600 px-3 py-3 text-xs font-bold text-white"><i class="fa-solid fa-download"></i> Download</button></div><button onclick="hideBillSavedModal()" class="mt-3 w-full rounded-xl border px-4 py-3 text-xs font-bold">Done</button>
     </div>
 </div>
 
@@ -261,6 +261,12 @@
                         </select>
                         <input id="itemQuantity" type="number" min="1" value="1" class="w-14 bg-slate-50 border-none rounded-lg px-2 py-2 text-center focus:ring-2 focus:ring-indigo-500">
                         <button onclick="addItemToBill()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-md">Add</button>
+<div class="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-indigo-200 bg-indigo-50/60 p-2">
+<input id="customItemName" type="text" maxlength="80" placeholder="Custom item (e.g. Pepsi)" class="min-w-[140px] flex-1 rounded-md border border-slate-200 bg-white px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+<input id="customItemPrice" type="number" min="0.01" step="0.01" placeholder="Price ₹" class="w-24 rounded-md border border-slate-200 bg-white px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
+<input id="customItemQuantity" type="number" min="1" step="1" value="1" aria-label="Custom item quantity" class="w-16 rounded-md border border-slate-200 bg-white px-2 py-2 text-center text-sm focus:ring-2 focus:ring-indigo-500">
+<button onclick="addCustomItemToBill()" class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"><i class="fa-solid fa-plus mr-1"></i>Add Item</button>
+</div>
                     </div>
                 </div>
                 <div id="menuItems" class="flex gap-4 max-h-[400px] lg:max-h-[300px] overflow-hidden pr-2"></div>
@@ -508,7 +514,10 @@
             : 'Save Bill';
     }
 
-    function showBillSavedModal(billId) {
+    let recentlySavedBill = null;
+    function showBillSavedModal(bill) {
+        recentlySavedBill = bill;
+        const billId = bill?.id;
         document.getElementById('savedBillNumber').textContent = billId ? `Bill #${billId} has been added to your records.` : 'Your bill has been added to your records.';
         document.getElementById('billSavedModal').classList.replace('hidden', 'flex');
     }
@@ -759,13 +768,34 @@ async function executeKnotTagPrint() {
         }
     }
 
+    function addCustomItemToBill() {
+        const nameInput = document.getElementById('customItemName');
+        const priceInput = document.getElementById('customItemPrice');
+        const quantityInput = document.getElementById('customItemQuantity');
+        const name = nameInput.value.trim();
+        const price = Number(priceInput.value);
+        const quantity = Number.parseInt(quantityInput.value, 10);
+        if (!name) { nameInput.focus(); return alert('Enter an item name.'); }
+        if (!Number.isFinite(price) || price <= 0) { priceInput.focus(); return alert('Enter a valid item price.'); }
+        if (!Number.isInteger(quantity) || quantity < 1) { quantityInput.focus(); return alert('Enter a quantity of at least 1.'); }
+        billItems.push({ name, price, quantity, custom: true });
+        nameInput.value = ''; priceInput.value = ''; quantityInput.value = '1';
+        renderBillItems(); nameInput.focus();
+    }
+
+    function updateCartItem(index, field, value) {
+        const item = billItems[index]; if (!item) return;
+        if (field === 'quantity') { const quantity = Number.parseInt(value, 10); if (!Number.isInteger(quantity) || quantity < 1) return; item.quantity = quantity; }
+        if (field === 'price') { const price = Number(value); if (!Number.isFinite(price) || price < 0) return; item.price = price; }
+        renderBillItems();
+    }
     function renderBillItems() {
         const container = document.getElementById('billItemsContainer');
         if (billItems.length === 0) {
             container.innerHTML = `<p class="text-center text-slate-400 py-10 uppercase font-bold">Your cart is empty</p>`;
             calcTotals(); return;
         }
-        container.innerHTML = billItems.map((it, i) => `<div class="flex justify-between items-center border-b border-slate-50 pb-2 text-sm"><div class="flex-1"><p class="font-medium uppercase truncate max-w-[150px]">${it.name}</p><p class="text-[10px] text-slate-400">${it.quantity} x ₹${it.price}</p></div><div class="text-right"><p class="font-bold">₹${fmt(it.price * it.quantity)}</p><button onclick="removeBillItem(${i})" class="text-[10px] text-rose-500 font-bold uppercase">REMOVE</button></div></div>`).join('');
+        container.innerHTML = billItems.map((it, i) => `<div class="flex items-center gap-2 border-b border-slate-50 pb-2 text-sm"><div class="min-w-0 flex-1"><p class="font-medium uppercase truncate max-w-[150px]">${it.name}</p><div class="mt-1 flex items-center gap-1 text-[10px] text-slate-500"><label>Qty <input type="number" min="1" step="1" value="${it.quantity}" onchange="updateCartItem(${i}, 'quantity', this.value)" class="w-12 rounded border border-slate-200 px-1 py-0.5 text-center"></label><label>₹ <input type="number" min="0" step="0.01" value="${it.price}" onchange="updateCartItem(${i}, 'price', this.value)" class="w-20 rounded border border-slate-200 px-1 py-0.5 text-right"></label></div></div><div class="shrink-0 text-right"><p class="font-bold">₹${fmt(it.price * it.quantity)}</p><button onclick="removeBillItem(${i})" class="text-[10px] text-rose-500 font-bold uppercase">REMOVE</button></div></div>`).join('');
         calcTotals();
     }
 
@@ -846,7 +876,7 @@ async function executeKnotTagPrint() {
                 
                 await clearBill(); 
                 await loadSavedBills();
-                showBillSavedModal(bill.id);
+                showBillSavedModal(bill);
 
             } else {
                 alert("Server rejected the bill payload. Check server logs.");
@@ -1159,6 +1189,13 @@ if (currentSavedBills.length > 7) {
         document.getElementById('pItems').innerHTML = b.items.map(i => `<div style="display:flex;"><div style="width:50%; text-transform: uppercase;">${i.name} x${i.quantity}</div><div style="width:20%; text-align:center;">${i.quantity}</div><div style="width:30%; text-align:right;">₹${fmt(i.price * i.quantity)}</div></div>`).join('');
     }
 
+    function invoiceReceipt(b) {
+        const items=(b.items||[]).map(i=>`<div class="item"><div class="item-name">${i.name||'Item'}</div><div class="item-qty">${i.quantity||0}</div><div class="item-price">₹${fmt(Number(i.price||0)*Number(i.quantity||0))}</div></div>`).join('')||'<div class="center">No item details available</div>';
+        const delivery=b.deliveryDate?`<div class="bold">DELIVERY DATE: ${b.deliveryDate}${b.deliveryTime?` ${b.deliveryTime}`:''}</div>`:'';
+        return `<div class="receipt"><div class="center"><img src="/logo.jpeg" style="width:38mm;max-height:18mm;object-fit:contain"></div><div class="center" style="font-size:11px">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px">6005228690</div><hr><div class="bold">BILL: ${b.id}</div><div>DATE: ${new Date(b.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(b.customer||'WALK-IN').toUpperCase()}</div><div>PHONE: ${b.phone||'N/A'}</div>${b.address?`<div>ADDRESS: ${b.address}</div>`:''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(b.subtotal)}</div><div class="total">Discount: ₹${fmt(b.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(b.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px">Balance: ₹${fmt(b.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
+    }
+    function printSavedInvoice(){const b=recentlySavedBill;if(!b)return;const w=window.open('','','width=380,height=640');if(!w)return;w.document.write(`<!DOCTYPE html><html><head><title>Invoice #${b.id}</title><style>@page{size:58mm auto;margin:0}body{margin:0}.receipt{width:58mm;padding:6px 6px 10px;box-sizing:border-box;font-family:monospace;font-size:12px;color:#000}.center{text-align:center}.bold{font-weight:bold}.items{margin-top:4px}.item{display:flex;margin:3px 0}.item-name{width:50%}.item-qty{width:20%;text-align:center}.item-price{width:30%;text-align:right}hr{border:0;border-top:1px solid #000;margin:6px 0}.total{text-align:right}.footer{font-size:8px;font-weight:700;margin-bottom:4px}.powered{font-size:10px;font-style:italic;border-top:1px dotted #000;padding-top:4px}</style></head><body>${invoiceReceipt(b)}</body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),300)}
+    async function downloadSavedInvoice(){const b=recentlySavedBill;if(!b)return;try{if(!window.jspdf?.jsPDF)throw new Error('PDF library unavailable');const {jsPDF}=window.jspdf,rows=b.items||[],doc=new jsPDF({orientation:'p',unit:'mm',format:[58,Math.max(125,94+rows.length*6)]}),left=4,right=54;let y=7;const line=()=>{doc.setDrawColor(0);doc.line(left,y,right,y);y+=4},center=(v,size=7,style='normal')=>{doc.setFont('courier',style);doc.setFontSize(size);doc.text(v,29,y,{align:'center'});y+=size*.45+1.2},label=(v,style='normal')=>{doc.setFont('courier',style);doc.setFontSize(7);doc.text(String(v).slice(0,45),left,y);y+=4},amount=(v,style='normal',size=7)=>{doc.setFont('courier',style);doc.setFontSize(size);doc.text(v,right,y,{align:'right'});y+=4};try{const logo=new Image();logo.src='/logo.jpeg';await new Promise((r,j)=>{logo.onload=r;logo.onerror=j});const h=Math.min(16,logo.height*34/logo.width);doc.addImage(logo,'JPEG',12,y,34,h);y+=h+2}catch(_){center("FRUIT'Z",13,'bold')}center('For Your Wellbeing',7,'italic');center('FSSIC NO : 24552365210253');center('Batamaloo, Srinagar');center('7006149827, 7889762496',7,'bold');line();label(`BILL: ${b.id}`,'bold');label(`DATE: ${new Date(b.date).toLocaleDateString('en-GB')}`);label(`CUSTOMER: ${(b.customer||'WALK-IN').toUpperCase()}`);label(`PHONE: ${b.phone||'N/A'}`);if(b.address)label(`ADDRESS: ${b.address.toUpperCase()}`);if(b.deliveryDate)label(`DELIVERY: ${b.deliveryDate} ${b.deliveryTime||''}`,'bold');line();doc.setFont('courier','bold');doc.setFontSize(7);doc.text('Item',left,y);doc.text('Qty',39,y,{align:'center'});doc.text('Price',right,y,{align:'right'});y+=4;doc.setFont('courier','normal');rows.forEach(i=>{doc.text(String(i.name||'Item').slice(0,20),left,y);doc.text(String(i.quantity||0),39,y,{align:'center'});doc.text(`Rs. ${fmt(Number(i.price||0)*Number(i.quantity||0))}`,right,y,{align:'right'});y+=4});line();amount(`Subtotal: Rs. ${fmt(b.subtotal)}`);amount(`Discount: Rs. ${fmt(b.discount)}`);amount(`Advance Paid: Rs. ${fmt(b.advance)}`,'bold');amount(`Balance: Rs. ${fmt(b.total)}`,'bold',8);line();center('Also on swiggy | zomato',6,'bold');center("powered by Fruit'z billing software",6,'italic');doc.save(`Invoice_${b.id}.pdf`)}catch(e){console.error(e);alert('Could not download this invoice. Please try again.')}}
     function printThermal() { 
         if(billItems.length === 0) return alert("Add items first"); 
         populatePrintArea(getCurrentBillObj()); 

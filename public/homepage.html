@@ -306,6 +306,20 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 bg-slate-50">
+            <section id="deletedInvoiceNotifications" class="hidden overflow-hidden rounded-2xl border border-rose-200 bg-white shadow-sm" aria-live="polite">
+                <div class="flex flex-col gap-4 bg-gradient-to-r from-rose-50 via-white to-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 shadow-sm"><i class="fa-solid fa-bell text-lg"></i></div>
+                        <div>
+                            <div class="flex flex-wrap items-center gap-2"><h2 class="text-sm font-extrabold text-slate-900">Recently deleted invoices</h2><span id="deletedInvoiceNotificationCount" class="rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-black text-white">0</span></div>
+                            <p class="mt-1 text-xs text-slate-500">These bills remain here until an administrator permanently removes them.</p>
+                        </div>
+                    </div>
+                    <a href="recentlydeleted.html" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-slate-700"><i class="fa-solid fa-box-archive"></i> Review deleted invoices <i class="fa-solid fa-arrow-right text-[10px]"></i></a>
+                </div>
+                <div id="deletedInvoiceNotificationList" class="divide-y divide-rose-100 px-5 sm:px-6"></div>
+            </section>
+
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex flex-wrap gap-2.5" id="mainFilters">
                     <button id="btn-ALL" onclick="setFilter('ALL')" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-violet-600 text-white transition-all shadow-sm">All</button>
@@ -603,6 +617,36 @@
           }
         }
 
+        function escapeDashboardText(value) {
+          return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+        }
+
+        async function loadDeletedInvoiceNotifications() {
+          const panel = document.getElementById('deletedInvoiceNotifications');
+          const list = document.getElementById('deletedInvoiceNotificationList');
+          const count = document.getElementById('deletedInvoiceNotificationCount');
+          try {
+            const response = await fetch('/api/recently-deleted-bills', { credentials: 'include' });
+            if (!response.ok) return;
+            const bills = await response.json();
+            if (!Array.isArray(bills) || bills.length === 0) {
+              panel.classList.add('hidden');
+              list.replaceChildren();
+              return;
+            }
+            count.textContent = String(bills.length);
+            list.innerHTML = bills.map(bill => {
+              const invoiceNumber = escapeDashboardText(bill.invoiceNo || bill.id || 'Unknown invoice');
+              const deletedBy = escapeDashboardText(bill.deletedBy || 'Staff');
+              const deletedAt = bill.deletedAt ? escapeDashboardText(new Date(bill.deletedAt).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })) : 'Time unavailable';
+              return `<a href="recentlydeleted.html" class="flex items-center gap-3 py-3 transition hover:bg-rose-50/60 sm:px-2"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-500"><i class="fa-solid fa-file-circle-minus"></i></span><span class="min-w-0 flex-1"><span class="block truncate text-xs font-bold text-slate-800">Invoice #${invoiceNumber} was deleted</span><span class="mt-1 block text-[10px] text-slate-500">Moved by ${deletedBy} · ${deletedAt}</span></span><i class="fa-solid fa-chevron-right text-xs text-rose-300"></i></a>`;
+            }).join('');
+            panel.classList.remove('hidden');
+          } catch (error) {
+            console.error('Could not load deleted invoice notifications:', error);
+          }
+        }
+
         function topMenuAction(option) {
           const menu = document.getElementById('topSlideMenu');
           const btn = document.getElementById('menuToggleBtn');
@@ -612,6 +656,7 @@
             showCenterToast('Dashboard View Loaded');
           } else if (option === 'option2') {
             fetchAndRenderData();
+            loadDeletedInvoiceNotifications();
             showCenterToast('Data Refreshed Successfully');
           } else if (option === 'option3') {
             showCenterToast('Settings Opened');
@@ -1475,6 +1520,8 @@
             highlightActiveSidebar();
             displayLoggedInUser();
             fetchAndRenderData();
+            loadDeletedInvoiceNotifications();
+            window.setInterval(loadDeletedInvoiceNotifications, 30000);
             fetchPresentUsers();
         };
     </script>

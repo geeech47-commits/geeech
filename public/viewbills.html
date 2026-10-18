@@ -671,6 +671,18 @@ function formatDisplayDate(dateString) {
     return `${d} ${m} ${y}, ${time}`;
 }
 
+function formatBillCreatedAt(bill) {
+    const created = new Date(bill?.createdAt || bill?.date);
+    if (Number.isNaN(created.getTime())) return '-';
+    const day = String(created.getDate()).padStart(2, '0');
+    const month = String(created.getMonth() + 1).padStart(2, '0');
+    const year = created.getFullYear();
+    const hour = created.getHours() % 12 || 12;
+    const minute = String(created.getMinutes()).padStart(2, '0');
+    const period = created.getHours() >= 12 ? 'PM' : 'AM';
+    return `${day}/${month}/${year} ${hour}:${minute} ${period}`;
+}
+
 function getDayLabel(dateString) {
     const date = new Date(dateString);
     const today = new Date();
@@ -860,7 +872,7 @@ function buildInvoiceReceipt(bill) {
         return `<div class="item${menuPrice > sellingPrice ? ' item-discounted' : ''}"><div class="item-name">${capitalizeItemName(item.name)}</div><div class="item-qty">${quantity}</div><div class="item-price">₹${fmt(sellingPrice * quantity)}</div></div>${priceDetails}`;
     }).join('') || '<div class="center">No item details available</div>';
     const delivery = bill.deliveryDate ? `<div class="bold">DELIVERY DATE: ${bill.deliveryDate}${bill.deliveryTime ? ` ${bill.deliveryTime}` : ''}</div>` : '';
-    return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic;">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Total Bill: ₹${fmt(getSaleTotal(bill))}</div><div class="total bold">Advance Received: ₹${fmt(bill.advance)}</div><div class="total">Payment mode: ${getPaymentSummary(bill)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Remaining Balance: ₹${fmt(getBalanceDue(bill))}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
+    return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic;">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${formatBillCreatedAt(bill)}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Total Bill: ₹${fmt(getSaleTotal(bill))}</div><div class="total bold">Advance Received: ₹${fmt(bill.advance)}</div><div class="total">Payment mode: ${getPaymentSummary(bill)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Remaining Balance: ₹${fmt(getBalanceDue(bill))}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
 }
 
 async function downloadInvoice(index, printInstead = false, printWindow = null) {
@@ -900,7 +912,7 @@ async function downloadInvoice(index, printInstead = false, printWindow = null) 
         centered('6005228690', 7, 'bold');
         line();
         label(`BILL: ${bill.id}`, 'bold');
-        label(`DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}`);
+        label(`DATE: ${formatBillCreatedAt(bill)}`);
         label(`CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}`);
         label(`PHONE: ${bill.phone || 'N/A'}`);
         if (bill.address) label(`ADDRESS: ${bill.address}`);

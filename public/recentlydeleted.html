@@ -26,14 +26,15 @@
   </aside>
 
   <main class="flex min-w-0 flex-1 flex-col overflow-hidden">
-    <header class="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4 sm:px-8">
-      <div class="flex items-center gap-3"><button onclick="toggleSidebar()" class="p-1 text-slate-600 md:hidden" aria-label="Toggle menu"><i class="fa-solid fa-bars text-xl"></i></button><div><p class="text-[10px] font-bold uppercase tracking-widest text-rose-600">Invoices</p><h1 class="text-lg font-bold text-slate-900">Recently Deleted Invoices</h1></div></div>
-      <button onclick="loadDeletedBills()" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-rotate mr-1.5"></i>Refresh</button>
+    <header class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-8 sm:py-4">
+      <div class="flex min-w-0 items-center gap-2 sm:gap-3"><button onclick="toggleSidebar()" class="shrink-0 p-1 text-slate-600 md:hidden" aria-label="Toggle menu"><i class="fa-solid fa-bars text-xl"></i></button><div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-widest text-rose-600">Invoices</p><h1 class="text-sm font-bold leading-tight text-slate-900 sm:text-lg">Recently Deleted Invoices</h1></div></div>
+      <button onclick="loadDeletedBills()" aria-label="Refresh invoices" title="Refresh invoices" class="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-rotate sm:mr-1.5"></i><span class="hidden sm:inline">Refresh</span></button>
     </header>
     <section class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
       <div class="mx-auto max-w-7xl space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p><i class="fa-solid fa-circle-info mr-2"></i>Invoices moved here remain saved. Only an administrator can permanently delete them.</p><span id="deletedCount" class="rounded-lg bg-white/70 px-3 py-1 text-xs font-bold">0 invoices</span></div>
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between"><p class="leading-relaxed"><i class="fa-solid fa-circle-info mr-2"></i>Invoices moved here remain saved. Only an administrator can permanently delete them.</p><span id="deletedCount" class="w-fit shrink-0 rounded-lg bg-white/70 px-3 py-1 text-xs font-bold">0 invoices</span></div>
+        <div id="deletedBillsMobile" class="space-y-3 md:hidden"><div class="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400">Loading recently deleted invoices…</div></div>
+        <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
           <div class="overflow-x-auto"><table class="w-full min-w-[850px] text-left text-sm">
             <thead class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Invoice</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Deleted</th><th class="px-4 py-3">Deleted by</th><th class="px-4 py-3 text-right">Total Bill</th><th class="px-4 py-3 text-right">Advance</th><th class="px-4 py-3 text-right">Remaining</th><th class="px-4 py-3 text-center">Action</th></tr></thead>
             <tbody id="deletedBillsBody" class="divide-y divide-slate-100"><tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">Loading recently deleted invoices…</td></tr></tbody>
@@ -68,7 +69,9 @@ function toggleSidebar() {
 
 async function loadDeletedBills() {
   const body = document.getElementById('deletedBillsBody');
+  const mobileBody = document.getElementById('deletedBillsMobile');
   body.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">Loading recently deleted invoices…</td></tr>';
+  mobileBody.innerHTML = '<div class="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400">Loading recently deleted invoices…</div>';
   try {
     const [userResponse, response] = await Promise.all([fetch('/api/current-user'), fetch('/api/recently-deleted-bills')]);
     if (userResponse.ok) {
@@ -81,16 +84,25 @@ async function loadDeletedBills() {
     document.getElementById('deletedCount').textContent = `${deletedBills.length} ${deletedBills.length === 1 ? 'invoice' : 'invoices'}`;
     if (!deletedBills.length) {
       body.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-slate-400">No recently deleted invoices.</td></tr>';
+      mobileBody.innerHTML = '<div class="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center text-sm text-slate-400"><i class="fa-solid fa-box-open mb-3 block text-2xl text-slate-300"></i>No recently deleted invoices.</div>';
       return;
     }
-    body.innerHTML = deletedBills.map(bill => {
+    const rows = deletedBills.map(bill => {
       const total = Number(bill.saleTotal ?? (Number(bill.subtotal || 0) - Number(bill.discount || 0))) || 0;
       const advance = Number(bill.advance) || 0;
       const deletedDate = bill.deletedAt ? new Date(bill.deletedAt).toLocaleString() : '—';
-      return `<tr class="hover:bg-slate-50"><td class="px-4 py-3 font-mono font-bold text-violet-700">${escapeHtml(bill.id)}</td><td class="px-4 py-3"><div class="font-semibold text-slate-800">${escapeHtml(bill.customer || 'WALK-IN')}</div><div class="text-xs text-slate-400">${escapeHtml(bill.phone || '')}</div></td><td class="px-4 py-3 text-xs text-slate-600">${escapeHtml(deletedDate)}</td><td class="px-4 py-3 text-xs text-slate-600">${escapeHtml(bill.deletedBy || '—')}</td><td class="px-4 py-3 text-right font-semibold">₹${money(total)}</td><td class="px-4 py-3 text-right text-indigo-700">₹${money(advance)}</td><td class="px-4 py-3 text-right font-bold text-rose-600">₹${money(Math.max(0, total - advance))}</td><td class="px-4 py-3 text-center"><button onclick="permanentlyDeleteInvoice('${encodeURIComponent(String(bill.id || ''))}')" class="rounded-lg border border-rose-200 px-3 py-1.5 text-[10px] font-bold uppercase text-rose-700 hover:bg-rose-50">Delete Permanently</button></td></tr>`;
-    }).join('');
+      const safeId = escapeHtml(bill.id || '');
+      const encodedId = encodeURIComponent(String(bill.id || ''));
+      return {
+        table: `<tr class="hover:bg-slate-50"><td class="px-4 py-3 font-mono font-bold text-violet-700">${safeId}</td><td class="px-4 py-3"><div class="font-semibold text-slate-800">${escapeHtml(bill.customer || 'WALK-IN')}</div><div class="text-xs text-slate-400">${escapeHtml(bill.phone || '')}</div></td><td class="px-4 py-3 text-xs text-slate-600">${escapeHtml(deletedDate)}</td><td class="px-4 py-3 text-xs text-slate-600">${escapeHtml(bill.deletedBy || '—')}</td><td class="px-4 py-3 text-right font-semibold">₹${money(total)}</td><td class="px-4 py-3 text-right text-indigo-700">₹${money(advance)}</td><td class="px-4 py-3 text-right font-bold text-rose-600">₹${money(Math.max(0, total - advance))}</td><td class="px-4 py-3 text-center"><button onclick="permanentlyDeleteInvoice('${encodedId}')" class="rounded-lg border border-rose-200 px-3 py-1.5 text-[10px] font-bold uppercase text-rose-700 hover:bg-rose-50">Delete Permanently</button></td></tr>`,
+        mobile: `<article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div class="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/70 p-4"><div class="min-w-0"><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Invoice number</p><p class="mt-1 break-all font-mono text-sm font-extrabold text-violet-700">${safeId}</p></div><span class="shrink-0 rounded-lg bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700"><i class="fa-solid fa-trash-can mr-1"></i>Deleted</span></div><div class="space-y-3 p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-[10px] font-bold uppercase text-slate-400">Customer</p><p class="mt-0.5 break-words text-sm font-semibold text-slate-800">${escapeHtml(bill.customer || 'WALK-IN')}</p><p class="text-xs text-slate-500">${escapeHtml(bill.phone || '')}</p></div><div class="text-right"><p class="text-[10px] font-bold uppercase text-slate-400">Total bill</p><p class="mt-0.5 text-sm font-bold text-slate-900">₹${money(total)}</p></div></div><div class="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3"><div><p class="text-[10px] font-bold uppercase text-slate-400">Advance paid</p><p class="mt-0.5 text-xs font-bold text-indigo-700">₹${money(advance)}</p></div><div class="text-right"><p class="text-[10px] font-bold uppercase text-slate-400">Remaining</p><p class="mt-0.5 text-xs font-bold text-rose-600">₹${money(Math.max(0, total - advance))}</p></div></div><div class="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[10px] text-slate-500"><span>Deleted ${escapeHtml(deletedDate)}</span><span>By ${escapeHtml(bill.deletedBy || '—')}</span></div><button onclick="permanentlyDeleteInvoice('${encodedId}')" class="w-full rounded-xl border border-rose-200 px-3 py-2.5 text-xs font-bold uppercase text-rose-700 transition hover:bg-rose-50"><i class="fa-solid fa-trash-can mr-1.5"></i>Delete Permanently</button></div></article>`
+      };
+    });
+    body.innerHTML = rows.map(row => row.table).join('');
+    mobileBody.innerHTML = rows.map(row => row.mobile).join('');
   } catch (error) {
     body.innerHTML = `<tr><td colspan="8" class="px-4 py-12 text-center text-rose-600">${escapeHtml(error.message)}</td></tr>`;
+    mobileBody.innerHTML = `<div class="rounded-2xl border border-rose-200 bg-white px-4 py-8 text-center text-sm text-rose-600">${escapeHtml(error.message)}</div>`;
   }
 }
 

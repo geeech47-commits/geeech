@@ -104,6 +104,8 @@ const BillSchema = new mongoose.Schema({
     discount: Number,
     advance: Number,
     saleTotal: Number,
+    paymentMode: { type: String, default: 'unrecorded' },
+    paymentBreakdown: { type: Array, default: [] },
     paymentStatus: {
         type: String,
         enum: ['paid', 'unpaid'],
@@ -349,9 +351,17 @@ app.get('/api/next-bill-id', async (req, res) => {
 
 app.get('/api/bills', async (req, res) => {
     try {
-        const query = Bill.find().sort({ date: -1 }).populate('riderId', 'riderName riderCode riderMobile').lean();
-        // Dashboard cards do not use bill line items, so avoid transferring them.
-        if (req.query.summary === '1') query.select('-items');
+        const isSummary = req.query.summary === '1';
+        const query = Bill.find().sort({ date: -1 }).lean();
+        if (isSummary) {
+            // List views need payment and delivery metadata, but item arrays and unrelated fields
+            // make the all-bills response unnecessarily large.
+            query.select('id date orderType customer phone address subtotal discount advance saleTotal paymentMode paymentBreakdown paymentStatus deliveryDate deliveryTime total balance orderSource Status status orderStatus packagedOn packagedTime riderAssigned riderCode riderAssignedAt riderId cancellationNote createdAt updatedAt');
+        } else {
+            query.populate('riderId', 'riderName riderCode riderMobile');
+        }
+        const requestedLimit = Number.parseInt(req.query.limit, 10);
+        if (Number.isFinite(requestedLimit) && requestedLimit > 0) query.limit(Math.min(requestedLimit, 500));
         const bills = await query;
         res.json(bills);
     } catch (err) { res.status(500).send(err); }
@@ -383,14 +393,32 @@ app.post('/api/bills', async (req, res) => {
         const saleTotal = Number.isFinite(subtotal)
             ? Math.max(0, subtotal - discount)
             : Math.max(0, requestedTotal + requestedAdvance);
-        const requestedPaymentStatus = String(data.paymentStatus || 'paid').toLowerCase();
-        const advance = data.orderSource === 'ONLINE'
-            ? saleTotal
-            : Math.min(saleTotal, requestedAdvance);
+        let paymentMode = String(data.paymentMode || data.payMethod || (data.orderSource === 'ONLINE' ? 'online' : 'unrecorded')).toLowerCase();
+        let paymentBreakdown = Array.isArray(data.paymentBreakdown)
+            ? data.paymentBreakdown.map(payment => ({ mode: String(payment.mode || '').toLowerCase(), amount: Math.max(0, Number(payment.amount) || 0) })).filter(payment => ['cash', 'online'].includes(payment.mode) && payment.amount > 0)
+            : [];
+        if (!['cash', 'online', 'split', 'unpaid', 'unrecorded'].includes(paymentMode)) paymentMode = 'unrecorded';
+        let advance = data.orderSource === 'ONLINE' ? saleTotal : Math.min(saleTotal, requestedAdvance);
+        if (paymentMode === 'unpaid') {
+            advance = 0;
+            paymentBreakdown = [];
+        } else if (paymentMode === 'split') {
+            const splitTotal = paymentBreakdown.reduce((sum, payment) => sum + payment.amount, 0);
+            advance = Math.min(saleTotal, splitTotal);
+            let remaining = advance;
+            paymentBreakdown = paymentBreakdown.map(payment => {
+                const amount = Math.min(payment.amount, remaining);
+                remaining -= amount;
+                return { ...payment, amount };
+            }).filter(payment => payment.amount > 0);
+        } else {
+            paymentBreakdown = advance > 0 && ['cash', 'online'].includes(paymentMode)
+                ? [{ mode: paymentMode, amount: advance }]
+                : [];
+        }
         const balance = Math.max(0, saleTotal - advance);
-        const paymentStatus = ['paid', 'unpaid'].includes(requestedPaymentStatus)
-            ? requestedPaymentStatus
-            : 'paid';
+        if (advance <= 0.005) paymentMode = 'unpaid';
+        const paymentStatus = balance <= 0.005 ? 'paid' : 'unpaid';
       // Determine order status based on order type
         let initialStatus = 'complete'; // Default for dine-in
         const orderType = data.orderType || 'indine'; // <-- Bug: mismatch with 'dine-in'
@@ -405,6 +433,8 @@ app.post('/api/bills', async (req, res) => {
             orderType: data.orderType || 'dine-in', 
             Status: initialStatus, // <-- Only updating 'Status', leaving 'orderStatus' default
             advance: advance,
+            paymentMode,
+            paymentBreakdown,
             saleTotal,
             paymentStatus,
             total: balance,
@@ -412,7 +442,7 @@ app.post('/api/bills', async (req, res) => {
         });
         
         await newBill.save();
-        res.json({ success: true, billId: newBill.id, paymentStatus, saleTotal, balance });
+        res.json({ success: true, billId: newBill.id, paymentStatus, saleTotal, balance, paymentMode, paymentBreakdown });
     } catch (err) { 
         res.status(500).send(err); 
     }
@@ -439,8 +469,32 @@ app.patch('/api/bills/:id/payment', async (req, res) => {
         const advance = requestedStatus === 'paid' ? saleTotal : 0;
         const balance = Math.max(0, saleTotal - advance);
 
+        const existingPayments = Array.isArray(bill.paymentBreakdown) ? bill.paymentBreakdown : [];
+        let paymentMode = String(bill.paymentMode || 'cash').toLowerCase();
+        let paymentBreakdown = [];
+        if (advance > 0) {
+            if (paymentMode === 'split' && existingPayments.length) {
+                const oldTotal = existingPayments.reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0) || 1;
+                let allocated = 0;
+                paymentBreakdown = existingPayments.map((payment, index) => {
+                    const amount = index === existingPayments.length - 1
+                        ? advance - allocated
+                        : Math.round(advance * (Math.max(0, Number(payment.amount) || 0) / oldTotal) * 100) / 100;
+                    allocated += amount;
+                    return { mode: payment.mode, amount };
+                });
+            } else {
+                if (!['cash', 'online'].includes(paymentMode)) paymentMode = 'cash';
+                paymentBreakdown = [{ mode: paymentMode, amount: advance }];
+            }
+        } else {
+            paymentMode = 'unpaid';
+        }
+
         bill.saleTotal = saleTotal;
         bill.advance = advance;
+        bill.paymentMode = paymentMode;
+        bill.paymentBreakdown = paymentBreakdown;
         bill.total = balance;
         bill.balance = balance;
         bill.paymentStatus = requestedStatus;
@@ -452,7 +506,7 @@ app.patch('/api/bills/:id/payment', async (req, res) => {
             change_log: `Payment status changed to ${requestedStatus.toUpperCase()}`
         }).save();
 
-        res.json({ success: true, paymentStatus: requestedStatus, saleTotal, balance });
+        res.json({ success: true, paymentStatus: requestedStatus, saleTotal, balance, paymentMode, paymentBreakdown });
     } catch (err) {
         console.error('Failed to update bill payment status:', err);
         res.status(500).json({ error: 'Failed to update payment status.' });
@@ -658,6 +712,33 @@ app.put('/api/bills/:id', async (req, res) => {
             updateData.total = balance;
             updateData.balance = balance;
             updateData.paymentStatus = balance <= 0.005 ? 'paid' : 'unpaid';
+            const requestedMode = String(updateData.paymentMode || existingBill.paymentMode || 'cash').toLowerCase();
+            updateData.paymentMode = ['cash', 'online', 'split'].includes(requestedMode) ? requestedMode : (paidAmount > 0 ? 'cash' : 'unpaid');
+            if (Array.isArray(updateData.paymentBreakdown)) {
+                updateData.paymentBreakdown = updateData.paymentBreakdown
+                    .map(payment => ({ mode: String(payment.mode || '').toLowerCase(), amount: Math.max(0, Number(payment.amount) || 0) }))
+                    .filter(payment => ['cash', 'online'].includes(payment.mode) && payment.amount > 0);
+            } else if (paidAmount <= 0) {
+                updateData.paymentBreakdown = [];
+                updateData.paymentMode = 'unpaid';
+            } else {
+                const oldBreakdown = Array.isArray(existingBill.paymentBreakdown) ? existingBill.paymentBreakdown : [];
+                const oldPaid = oldBreakdown.reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0);
+                if (updateData.paymentMode === 'split' && oldPaid > 0) {
+                    let allocated = 0;
+                    updateData.paymentBreakdown = oldBreakdown.map((payment, index) => {
+                        const amount = index === oldBreakdown.length - 1
+                            ? paidAmount - allocated
+                            : Math.round(paidAmount * (Math.max(0, Number(payment.amount) || 0) / oldPaid) * 100) / 100;
+                        allocated += amount;
+                        return { mode: payment.mode, amount };
+                    });
+                } else {
+                    const mode = ['cash', 'online'].includes(updateData.paymentMode) ? updateData.paymentMode : 'cash';
+                    updateData.paymentMode = mode;
+                    updateData.paymentBreakdown = [{ mode, amount: paidAmount }];
+                }
+            }
         }
 
         const updatedBill = await Bill.findByIdAndUpdate(billId, updateData, { returnDocument: 'after' });

@@ -306,11 +306,18 @@
                             <input id="advance" type="number" value="0" oninput="calcTotals()" class="w-20 text-right bg-indigo-50 border-none rounded-md px-2 py-1 focus:ring-1 focus:ring-indigo-500 font-bold">
                         </div>
                         <div class="flex items-center justify-between text-slate-600 text-sm">
-                            <label for="paymentStatus" class="font-medium">Payment Status</label>
-                            <select id="paymentStatus" onchange="calcTotals()" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700">
-                                <option value="paid" selected>Paid</option>
+                            <label for="paymentMode" class="font-medium">Payment mode</label>
+                            <select id="paymentMode" onchange="updatePaymentMode();calcTotals()" class="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700">
+                                <option value="cash" selected>Cash</option>
+                                <option value="online">Online</option>
+                                <option value="split">Split (Cash + Online)</option>
                                 <option value="unpaid">Unpaid</option>
                             </select>
+                        </div>
+                        <div id="splitPaymentFields" class="hidden grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3">
+                            <label class="text-xs font-semibold text-slate-600">Cash paid (₹)<input id="cashPayment" type="number" min="0" step="0.01" value="0" oninput="calcTotals()" class="mt-1 w-full rounded-md border border-slate-200 px-2 py-1.5 text-right font-bold"></label>
+                            <label class="text-xs font-semibold text-slate-600">Online paid (₹)<input id="onlinePayment" type="number" min="0" step="0.01" value="0" oninput="calcTotals()" class="mt-1 w-full rounded-md border border-slate-200 px-2 py-1.5 text-right font-bold"></label>
+                            <p class="col-span-2 text-[10px] text-slate-500">Cash and online amounts are added as the advance paid.</p>
                         </div>
                         <div class="flex justify-between text-slate-900 text-lg font-bold pt-3 border-t">
                             <span id="balanceLabel" class="text-base uppercase">Balance Due</span>
@@ -432,6 +439,7 @@
       <div style="text-align:right;">Subtotal: ₹<span id="pSubtotal"></span></div>
       <div style="text-align:right;">Discount: ₹<span id="pDiscount"></span></div>
       <div style="text-align:right; font-weight:bold;">Advance Paid: ₹<span id="pAdvance"></span></div>
+      <div style="text-align:right;">Payment mode: <span id="pPaymentMode"></span></div>
       <div style="text-align:right; font-weight:900; font-size:14px; margin-top:2px;">
         Balance: ₹<span id="pTotal"></span>
       </div>
@@ -594,6 +602,12 @@
     }
 
     function fmt(n) { return Number(n).toFixed(2); }
+    function getPaymentSummary(bill) {
+        const entries = Array.isArray(bill?.paymentBreakdown) ? bill.paymentBreakdown : [];
+        if (entries.length) return entries.map(payment => `${String(payment.mode || '').toUpperCase()} ₹${fmt(payment.amount)}`).join(' + ');
+        const mode = String(bill?.paymentMode || bill?.payMethod || (bill?.orderSource === 'ONLINE' ? 'online' : '')).toLowerCase();
+        return ({ cash: 'Cash', online: 'Online', split: 'Split', unpaid: 'Unpaid', unrecorded: 'Not recorded' })[mode] || 'Not recorded';
+    }
 
     function formatDateDDMMYYYY(dateInput) {
         if (!dateInput) return "-";
@@ -848,9 +862,21 @@ async function executeKnotTagPrint() {
         const sub = billItems.reduce((s, i) => s + (i.price * i.quantity), 0);
         const disc = parseFloat(document.getElementById('discount').value) || 0;
         const afterDisc = Math.max(0, sub - disc);
-        const paymentStatus = document.getElementById('paymentStatus')?.value || 'paid';
         const advanceInput = document.getElementById('advance');
-        const adv = Math.min(afterDisc, Math.max(0, parseFloat(advanceInput?.value) || 0));
+        const paymentMode = document.getElementById('paymentMode')?.value || 'cash';
+        let requestedAdvance = Math.max(0, parseFloat(advanceInput?.value) || 0);
+        if (paymentMode === 'split') {
+            requestedAdvance = Math.max(0, Number(document.getElementById('cashPayment')?.value) || 0) + Math.max(0, Number(document.getElementById('onlinePayment')?.value) || 0);
+            advanceInput.value = fmt(requestedAdvance);
+            advanceInput.readOnly = true;
+        } else {
+            advanceInput.readOnly = false;
+            if (paymentMode === 'unpaid') {
+                requestedAdvance = 0;
+                advanceInput.value = '0';
+            }
+        }
+        const adv = Math.min(afterDisc, requestedAdvance);
         const balance = afterDisc - adv;
         document.getElementById('subtotal').textContent = fmt(sub);
         document.getElementById('total').textContent = fmt(balance);
@@ -858,6 +884,23 @@ async function executeKnotTagPrint() {
         if (balance > 0) totalEl.className = "text-rose-600";
         else if (balance < 0) totalEl.className = "text-indigo-600";
         else totalEl.className = "text-emerald-600";
+    }
+
+    function updatePaymentMode() {
+        const mode = document.getElementById('paymentMode')?.value;
+        document.getElementById('splitPaymentFields')?.classList.toggle('hidden', mode !== 'split');
+        if (mode === 'unpaid') document.getElementById('advance').value = '0';
+    }
+
+    function getPaymentBreakdown() {
+        const mode = document.getElementById('paymentMode')?.value || 'cash';
+        if (mode === 'unpaid') return [];
+        if (mode === 'split') return [
+            { mode: 'cash', amount: Number(document.getElementById('cashPayment')?.value) || 0 },
+            { mode: 'online', amount: Number(document.getElementById('onlinePayment')?.value) || 0 }
+        ].filter(payment => payment.amount > 0);
+        const amount = Number(document.getElementById('advance')?.value) || 0;
+        return amount > 0 ? [{ mode, amount }] : [];
     }
 
     async function fetchNewBillId() {
@@ -887,7 +930,9 @@ async function executeKnotTagPrint() {
             orderSource: 'offline',
             discount: document.getElementById('discount').value || 0,
             advance: document.getElementById('advance').value || 0,
-            paymentStatus: document.getElementById('paymentStatus').value,
+            paymentMode: document.getElementById('paymentMode').value,
+            paymentBreakdown: getPaymentBreakdown(),
+            paymentStatus: Number(document.getElementById('total').textContent.replace(/,/g, '')) <= 0.005 ? 'paid' : 'unpaid',
             total: document.getElementById('total').textContent
         };
     }
@@ -982,7 +1027,7 @@ async function executeKnotTagPrint() {
 
    async function loadSavedBills() {
         try {
-            const response = await fetch('/api/bills');
+            const response = await fetch('/api/bills?summary=1&limit=7');
             currentSavedBills = await response.json();
             const cont = document.getElementById('savedBillsList');
             const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1022,7 +1067,7 @@ async function executeKnotTagPrint() {
                     <td data-label="Balance Due" class="px-4 py-4 text-right font-black ${isCancelled ? 'text-slate-400' : balanceColor}">
                         ${isCancelled ? '₹0.00' : balanceText}
                     </td>
-                    <td data-label="Payment" class="px-3 py-3 text-center"><span class="rounded-full px-2 py-1 text-[9px] font-black uppercase ${paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${paymentStatus}</span></td>
+                    <td data-label="Payment" class="px-3 py-3 text-center"><span class="rounded-full px-2 py-1 text-[9px] font-black uppercase ${paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${paymentStatus}</span><div class="mt-1 text-[9px] font-bold text-slate-500">${getPaymentSummary(b)}</div></td>
                     <td class="px-3 py-3 text-center">
                         <div class="action-dropdown">
                             <button onclick="toggleDropdown(event, ${i})" class="bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200">
@@ -1132,6 +1177,10 @@ if (currentSavedBills.length > 7) {
                     <div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Phone</p>
                         <p class="text-sm font-semibold text-slate-700">${b.phone || 'N/A'}</p>
+                    </div>
+                    <div class="col-span-2">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Payment mode and amounts</p>
+                        <p class="text-sm font-semibold text-slate-700">${getPaymentSummary(b)}</p>
                     </div>
                     <div class="col-span-2">
                         <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Address</p>
@@ -1262,6 +1311,7 @@ if (currentSavedBills.length > 7) {
         document.getElementById('pSubtotal').innerText = b.subtotal;
         document.getElementById('pDiscount').innerText = fmt(b.discount || 0);
         document.getElementById('pAdvance').innerText = fmt(b.advance || 0);
+        document.getElementById('pPaymentMode').innerText = getPaymentSummary(b);
         document.getElementById('pTotal').innerText = fmt(b.total || 0);
         document.getElementById('pItems').innerHTML = b.items.map(i => { const quantity=Number(i.quantity||i.qty)||1, price=Number(i.price)||0, menuPrice=Number(i.basePrice??price)||0, saved=Math.max(0,menuPrice-price)*quantity; return `<div><div style="display:flex;"><div style="width:50%;text-transform:none;">${capitalizeItemName(i.name)}</div><div style="width:20%;text-align:center;">${quantity}</div><div style="width:30%;text-align:right;">₹${fmt(price*quantity)}</div></div>${menuPrice>price?`<div style="font-size:10px;margin:1px 0 3px;">Menu ₹${fmt(menuPrice)} | Your price ₹${fmt(price)}<br><strong>You saved: ₹${fmt(saved)}</strong></div>`:''}</div>`; }).join('');
     }
@@ -1272,7 +1322,7 @@ if (currentSavedBills.length > 7) {
     function invoiceReceipt(b) {
         const items=(b.items||[]).map(i=>{const quantity=Number(i.quantity||i.qty)||1;const sellingPrice=Number(i.price)||0;const menuPrice=Number(i.basePrice??sellingPrice)||0;const savings=Math.max(0,menuPrice-sellingPrice)*quantity;const details=menuPrice>sellingPrice?`<div style="font-size:10px;margin:0 0 2.5mm">Menu ₹${fmt(menuPrice)} | Your price ₹${fmt(sellingPrice)}<br><strong>You saved: ₹${fmt(savings)}</strong></div>`:'';return `<div class="item${menuPrice>sellingPrice ? ' item-discounted' : ''}"><div class="item-name">${capitalizeItemName(i.name)}</div><div class="item-qty">${quantity}</div><div class="item-price">₹${fmt(sellingPrice*quantity)}</div></div>${details}`}).join('')||'<div class="center">No item details available</div>';
         const delivery=b.deliveryDate?`<div class="bold">DELIVERY DATE: ${b.deliveryDate}${b.deliveryTime?` ${b.deliveryTime}`:''}</div>`:'';
-        return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px">6005228690</div><hr><div class="bold">BILL: ${b.id}</div><div>DATE: ${new Date(b.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(b.customer||'WALK-IN').toUpperCase()}</div><div>PHONE: ${b.phone||'N/A'}</div>${b.address?`<div>ADDRESS: ${b.address}</div>`:''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(b.subtotal)}</div><div class="total">Discount: ₹${fmt(b.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(b.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px">Balance: ₹${fmt(b.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
+        return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px">6005228690</div><hr><div class="bold">BILL: ${b.id}</div><div>DATE: ${new Date(b.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(b.customer||'WALK-IN').toUpperCase()}</div><div>PHONE: ${b.phone||'N/A'}</div>${b.address?`<div>ADDRESS: ${b.address}</div>`:''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(b.subtotal)}</div><div class="total">Discount: ₹${fmt(b.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(b.advance)}</div><div class="total">Payment mode: ${getPaymentSummary(b)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px">Balance: ₹${fmt(b.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
     }
     function printSavedInvoice(){
         const b=recentlySavedBill;if(!b)return;
@@ -1280,7 +1330,7 @@ if (currentSavedBills.length > 7) {
         w.document.write(`<!DOCTYPE html><html><head><title>Invoice #${b.id}</title><style>@page{size:58mm auto;margin:0}body{margin:0}.receipt{width:58mm;padding:6px 6px 10px;box-sizing:border-box;font-family:monospace;font-size:12px;color:#000;text-rendering:geometricPrecision}.receipt-logo{display:block;width:38mm;height:auto;max-width:100%;max-height:34mm;object-fit:contain;margin:0 auto 2px;image-rendering:auto}.center{text-align:center}.bold{font-weight:bold}.items{margin-top:4px}.item{display:flex;margin:0 0 2.5mm;line-height:1.05}.item-discounted{margin-bottom:0}.item-name{width:50%}.item-qty{width:20%;text-align:center}.item-price{width:30%;text-align:right}hr{border:0;border-top:1px solid #000;margin:6px 0}.total{text-align:right}.footer{font-size:8px;font-weight:700;margin-bottom:4px}.powered{font-size:10px;font-style:italic;border-top:1px dotted #000;padding-top:4px}</style></head><body>${invoiceReceipt(b)}</body></html>`);
         w.document.close();const logo=w.document.querySelector('.receipt-logo'),runPrint=()=>{w.focus();setTimeout(()=>w.print(),100)};
         if(!logo||logo.complete)runPrint();else{logo.onload=runPrint;logo.onerror=runPrint}
-    }    async function downloadSavedInvoice(printInstead=false,printWindow=null){const b=recentlySavedBill;if(!b)return;try{if(!window.jspdf?.jsPDF)throw new Error('PDF library unavailable');const {jsPDF}=window.jspdf,rows=b.items||[],doc=new jsPDF({orientation:'p',unit:'mm',format:[58,Math.max(135,104+rows.length*13)]}),left=4,right=54;let y=7;const line=()=>{doc.setDrawColor(0);doc.line(left,y,right,y);y+=4},center=(v,size=7,style='normal')=>{doc.setFont('courier',style);doc.setFontSize(size);doc.text(v,29,y,{align:'center'});y+=size*.45+1.2},label=(v,style='normal')=>{doc.setFont('courier',style);doc.setFontSize(7);const lines=doc.splitTextToSize(String(v),right-left);doc.text(lines,left,y);y+=lines.length*3.2+1},amount=(v,style='normal',size=7)=>{doc.setFont('courier',style);doc.setFontSize(size);doc.text(v,right,y,{align:'right'});y+=4};try{const logo=new Image();logo.src='/invoice-logo.jpg';await new Promise((r,j)=>{logo.onload=r;logo.onerror=j});const h=Math.min(34,logo.height*38/logo.width);doc.addImage(logo,'JPEG',10,y,38,h);y+=h+2}catch(_){center("FRUIT'Z",13,'bold')}center('A UNIT OF GEE ECH BAKERS',6,'italic');center('FSSAI NO : 11017430000562',7);center('Geeechbakery@gmail.com',6,'italic');center('Ziyarat Batamaloo, Srinagar',7);center('6005228690',7,'bold');line();label(`BILL: ${b.id}`,'bold');label(`DATE: ${new Date(b.date).toLocaleDateString('en-GB')}`);label(`CUSTOMER: ${(b.customer||'WALK-IN').toUpperCase()}`);label(`PHONE: ${b.phone||'N/A'}`);if(b.address)label(`ADDRESS: ${b.address}`);if(b.deliveryDate)label(`DELIVERY DATE: ${b.deliveryDate} ${b.deliveryTime||''}`,'bold');line();doc.setFont('courier','bold');doc.setFontSize(7);doc.text('Item',left,y);doc.text('Qty',39,y,{align:'center'});doc.text('Price',right,y,{align:'right'});y+=4;doc.setFont('courier','normal');rows.forEach(i=>{const quantity=Number(i.quantity||i.qty)||1,sellingPrice=Number(i.price)||0,menuPrice=Number(i.basePrice??sellingPrice)||0,savings=Math.max(0,menuPrice-sellingPrice)*quantity;doc.text(capitalizeItemName(i.name).slice(0,20),left,y);doc.text(String(quantity),39,y,{align:'center'});doc.text(`Rs. ${fmt(sellingPrice*quantity)}`,right,y,{align:'right'});y+=5;if(menuPrice>sellingPrice){doc.setFontSize(6);doc.text(`Menu Rs. ${fmt(menuPrice)} | Your price Rs. ${fmt(sellingPrice)}`,left,y);y+=3;doc.setFont('courier','bold');doc.text(`You saved: Rs. ${fmt(savings)}`,left,y);doc.setFont('courier','normal');y+=4}});line();amount(`Subtotal: Rs. ${fmt(b.subtotal)}`);amount(`Discount: Rs. ${fmt(b.discount)}`);amount(`Advance Paid: Rs. ${fmt(b.advance)}`,'bold');amount(`Balance: Rs. ${fmt(b.total)}`,'bold',8);line();center('Also on swiggy | zomato',6,'bold');center("powered by Hanief multiventures",6,'italic');if(printInstead){if(typeof doc.autoPrint==='function')doc.autoPrint();const printUrl=URL.createObjectURL(doc.output('blob'));if(!printWindow)return;printWindow.location.href=printUrl}else{doc.save(`Invoice_${b.id}.pdf`)}}catch(e){console.error(e);alert('Could not download this invoice. Please try again.')}}
+    }    async function downloadSavedInvoice(printInstead=false,printWindow=null){const b=recentlySavedBill;if(!b)return;try{if(!window.jspdf?.jsPDF)throw new Error('PDF library unavailable');const {jsPDF}=window.jspdf,rows=b.items||[],doc=new jsPDF({orientation:'p',unit:'mm',format:[58,Math.max(135,104+rows.length*13)]}),left=4,right=54;let y=7;const line=()=>{doc.setDrawColor(0);doc.line(left,y,right,y);y+=4},center=(v,size=7,style='normal')=>{doc.setFont('courier',style);doc.setFontSize(size);doc.text(v,29,y,{align:'center'});y+=size*.45+1.2},label=(v,style='normal')=>{doc.setFont('courier',style);doc.setFontSize(7);const lines=doc.splitTextToSize(String(v),right-left);doc.text(lines,left,y);y+=lines.length*3.2+1},amount=(v,style='normal',size=7)=>{doc.setFont('courier',style);doc.setFontSize(size);doc.text(v,right,y,{align:'right'});y+=4};try{const logo=new Image();logo.src='/invoice-logo.jpg';await new Promise((r,j)=>{logo.onload=r;logo.onerror=j});const h=Math.min(34,logo.height*38/logo.width);doc.addImage(logo,'JPEG',10,y,38,h);y+=h+2}catch(_){center("FRUIT'Z",13,'bold')}center('A UNIT OF GEE ECH BAKERS',6,'italic');center('FSSAI NO : 11017430000562',7);center('Geeechbakery@gmail.com',6,'italic');center('Ziyarat Batamaloo, Srinagar',7);center('6005228690',7,'bold');line();label(`BILL: ${b.id}`,'bold');label(`DATE: ${new Date(b.date).toLocaleDateString('en-GB')}`);label(`CUSTOMER: ${(b.customer||'WALK-IN').toUpperCase()}`);label(`PHONE: ${b.phone||'N/A'}`);if(b.address)label(`ADDRESS: ${b.address}`);if(b.deliveryDate)label(`DELIVERY DATE: ${b.deliveryDate} ${b.deliveryTime||''}`,'bold');line();doc.setFont('courier','bold');doc.setFontSize(7);doc.text('Item',left,y);doc.text('Qty',39,y,{align:'center'});doc.text('Price',right,y,{align:'right'});y+=4;doc.setFont('courier','normal');rows.forEach(i=>{const quantity=Number(i.quantity||i.qty)||1,sellingPrice=Number(i.price)||0,menuPrice=Number(i.basePrice??sellingPrice)||0,savings=Math.max(0,menuPrice-sellingPrice)*quantity;doc.text(capitalizeItemName(i.name).slice(0,20),left,y);doc.text(String(quantity),39,y,{align:'center'});doc.text(`Rs. ${fmt(sellingPrice*quantity)}`,right,y,{align:'right'});y+=5;if(menuPrice>sellingPrice){doc.setFontSize(6);doc.text(`Menu Rs. ${fmt(menuPrice)} | Your price Rs. ${fmt(sellingPrice)}`,left,y);y+=3;doc.setFont('courier','bold');doc.text(`You saved: Rs. ${fmt(savings)}`,left,y);doc.setFont('courier','normal');y+=4}});line();amount(`Subtotal: Rs. ${fmt(b.subtotal)}`);amount(`Discount: Rs. ${fmt(b.discount)}`);amount(`Advance Paid: Rs. ${fmt(b.advance)}`,'bold');amount(`Payment mode: ${getPaymentSummary(b)}`);amount(`Balance: Rs. ${fmt(b.total)}`,'bold',8);line();center('Also on swiggy | zomato',6,'bold');center("powered by Hanief multiventures",6,'italic');if(printInstead){if(typeof doc.autoPrint==='function')doc.autoPrint();const printUrl=URL.createObjectURL(doc.output('blob'));if(!printWindow)return;printWindow.location.href=printUrl}else{doc.save(`Invoice_${b.id}.pdf`)}}catch(e){console.error(e);alert('Could not download this invoice. Please try again.')}}
     function printThermal() { 
         if(billItems.length === 0) return alert("Add items first"); 
         populatePrintArea(getCurrentBillObj()); 
@@ -1310,7 +1360,10 @@ if (currentSavedBills.length > 7) {
         document.getElementById('deliveryTime').value = ""; 
         document.getElementById('discount').value = 0; 
         document.getElementById('advance').value = 0; 
-        document.getElementById('paymentStatus').value = 'paid';
+        document.getElementById('paymentMode').value = 'cash';
+        document.getElementById('cashPayment').value = 0;
+        document.getElementById('onlinePayment').value = 0;
+        updatePaymentMode();
         document.getElementById('advance').dataset.autoPaid = 'false';
         renderBillItems();
         

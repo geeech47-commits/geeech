@@ -341,7 +341,7 @@
                     <span class="absolute inset-y-0 left-3.5 flex items-center text-slate-400">
                       <i class="fa-solid fa-magnifying-glass text-xs"></i>
                     </span>
-                    <input id="searchBills" type="text" placeholder="Search bills by number, customer..." oninput="loadSavedBills()" class="w-full py-2 pl-10 pr-4 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-violet-400/20 focus:border-violet-500 text-xs text-slate-700 shadow-sm placeholder:text-slate-400">
+                    <input id="searchBills" type="text" placeholder="Search bills by number, customer..." oninput="scheduleBillsFilter()" class="w-full py-2 pl-10 pr-4 rounded-xl bg-white border border-slate-200 outline-none focus:ring-2 focus:ring-violet-400/20 focus:border-violet-500 text-xs text-slate-700 shadow-sm placeholder:text-slate-400">
                   </div>
 
                   <button onclick="clearFilters()" title="Clear filters" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center shrink-0 shadow-sm">
@@ -361,7 +361,7 @@
               <div class="max-w-[1440px] mx-auto space-y-6">
 
                 <!-- STATS CARDS GRID -->
-                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <section id="adminInvoiceStats" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center justify-between relative overflow-hidden">
                     <div>
                       <p class="text-[11px] font-medium text-slate-400">Total Bills</p>
@@ -533,6 +533,9 @@
 <script>
 let allBills = [];
 let filteredBillsCache = [];
+let billsSummaryCache = null;
+let billsSummaryRequest = null;
+let billsFilterTimer = null;
 let toastTimeout = null;
 
 const scrollContainer = document.getElementById('scrollContainer');
@@ -589,7 +592,7 @@ function topMenuAction(option) {
   if (option === 'option1') {
     showCenterToast('Dashboard View Loaded');
   } else if (option === 'option2') {
-    loadSavedBills();
+    loadSavedBills(true);
     showCenterToast('Data Refreshed Successfully');
   } else if (option === 'option3') {
     showCenterToast('Settings Opened');
@@ -603,6 +606,8 @@ async function loadSidebarUser() {
     const user = await response.json();
     const name = user.username || 'User';
     const role = user.role || 'Admin';
+    const isAdmin = String(user.role || '').toLowerCase() === 'admin' || String(user.username || '').toLowerCase() === 'admin';
+    document.getElementById('adminInvoiceStats')?.classList.toggle('hidden', !isAdmin);
     
     // Generate Initials
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -626,6 +631,26 @@ const fmt = (n) =>
   parseFloat(n || 0).toLocaleString('en-IN', {
     minimumFractionDigits: 2
   });
+
+function getBalanceDue(bill) {
+  if (String(bill?.paymentStatus || '').toLowerCase() === 'paid') return 0;
+  const storedBalance = Number(bill?.balance);
+  if (Number.isFinite(storedBalance)) return Math.max(0, storedBalance);
+  return Math.max(0, Number(bill?.total) || 0);
+}
+
+function getSaleTotal(bill) {
+  const storedSaleTotal = Number(bill?.saleTotal);
+  if (Number.isFinite(storedSaleTotal)) return Math.max(0, storedSaleTotal);
+  return Math.max(0, (Number(bill?.subtotal) || 0) - (Number(bill?.discount) || 0));
+}
+
+function getPaymentSummary(bill) {
+  const payments = Array.isArray(bill?.paymentBreakdown) ? bill.paymentBreakdown : [];
+  if (payments.length) return payments.map(payment => `${String(payment.mode || '').toUpperCase()} ₹${fmt(payment.amount)}`).join(' + ');
+  const mode = String(bill?.paymentMode || bill?.payMethod || (bill?.orderSource === 'ONLINE' ? 'online' : '')).toLowerCase();
+  return ({ cash: 'Cash', online: 'Online', split: 'Split', unpaid: 'Unpaid', unrecorded: 'Not recorded' })[mode] || 'Not recorded';
+}
 
 function formatDisplayDate(dateString) {
     const date = new Date(dateString);
@@ -690,7 +715,7 @@ function showAmountBreakdown(index) {
     document.getElementById('modalDiscount').textContent = `₹${fmt(b.discount)}`;
     document.getElementById('modalAdvance').textContent = `₹${fmt(b.advance)}`;
     
-    const balance = parseFloat(b.total || 0);
+    const balance = getBalanceDue(b);
     const balanceEl = document.getElementById('modalBalance');
     balanceEl.textContent = `₹${fmt(balance)}`;
     
@@ -719,13 +744,27 @@ function formatStoredDate(value) {
     return Number.isNaN(date.getTime()) ? String(value) : formatDisplayDate(date);
 }
 
-function showBillDetails(index) {
-    const bill = allBills[index];
+async function ensureBillDetails(index) {
+    let bill = allBills[index];
+    if (!bill) return null;
+    if (Array.isArray(bill.items)) return bill;
+    const response = await fetch(`/api/bills/${encodeURIComponent(bill.id)}`);
+    if (!response.ok) throw new Error(`Could not load invoice details (HTTP ${response.status}).`);
+    bill = await response.json();
+    allBills[index] = bill;
+    return bill;
+}
+
+async function showBillDetails(index) {
+    let bill;
+    try { bill = await ensureBillDetails(index); }
+    catch (error) { console.error('Could not load invoice details:', error); alert(error.message || 'Could not load invoice details.'); return; }
     if (!bill) return;
 
     const hasValue = value => value !== null && value !== undefined && String(value).trim() !== '';
     const details = [
         ['Customer', bill.customer], ['Phone', bill.phone], ['Order type', bill.orderType && getOrderTypeLabel(bill.orderType)],
+        ['Payment mode', getPaymentSummary(bill)],
         ['Order source', bill.orderSource], ['Status', bill.Status || bill.orderStatus], ['Address', bill.address],
         ['Delivery date', bill.deliveryDate], ['Delivery time', bill.deliveryTime], ['Packaged on', bill.packagedOn],
         ['Packaged time', bill.packagedTime], ['Rider name', bill.riderId?.riderName || bill.riderAssigned],
@@ -747,9 +786,9 @@ function showBillDetails(index) {
     document.getElementById('detailsModalTitle').textContent = `Bill #${bill.id}`;
     document.getElementById('detailsModalContent').innerHTML = `
       <div class="space-y-5">
-        <section class="overflow-hidden rounded-2xl border border-violet-100 bg-white"><div class="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 bg-violet-50/70 px-5 py-4"><div><p class="text-[10px] font-bold uppercase tracking-widest text-violet-500">Invoice overview</p><p class="mt-0.5 text-lg font-bold text-slate-900">₹${fmt(bill.total)}</p></div><span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-violet-700 shadow-sm">#${escapeHtml(bill.id)}</span></div><div class="grid grid-cols-1 px-5 sm:grid-cols-2 sm:gap-x-8">${fields || '<p class="py-5 text-xs text-slate-400">No additional bill details were saved.</p>'}</div></section>
+        <section class="overflow-hidden rounded-2xl border border-violet-100 bg-white"><div class="flex flex-wrap items-center justify-between gap-3 border-b border-violet-100 bg-violet-50/70 px-5 py-4"><div><p class="text-[10px] font-bold uppercase tracking-widest text-violet-500">Invoice overview</p><p class="mt-0.5 text-lg font-bold text-slate-900">₹${fmt(getSaleTotal(bill))}</p></div><span class="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-violet-700 shadow-sm">#${escapeHtml(bill.id)}</span></div><div class="grid grid-cols-1 px-5 sm:grid-cols-2 sm:gap-x-8">${fields || '<p class="py-5 text-xs text-slate-400">No additional bill details were saved.</p>'}</div></section>
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div class="flex items-center justify-between border-b border-slate-200 px-4 py-3"><h4 class="text-xs font-bold uppercase tracking-wider text-slate-600">Items and rates</h4><span class="text-[10px] font-bold text-slate-400">${items.length} item${items.length === 1 ? '' : 's'}</span></div><div class="overflow-x-auto"><table class="w-full min-w-[520px] text-left text-xs"><thead class="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400"><tr><th class="px-4 py-3">Item</th><th class="px-4 py-3 text-center">Qty</th><th class="px-4 py-3 text-right">Rate</th><th class="px-4 py-3 text-right">Amount</th></tr></thead><tbody>${itemRows}</tbody></table></div></section>
-        <section class="grid grid-cols-2 gap-3 sm:grid-cols-5"><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Subtotal</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.subtotal)}</p></div><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Discount</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.discount)}</p></div><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Advance</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.advance)}</p></div>${hasValue(bill.balance) ? `<div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Balance</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.balance)}</p></div>` : ''}<div class="rounded-xl bg-violet-600 p-3"><p class="text-[9px] font-bold uppercase text-violet-200">Invoice total</p><p class="mt-1 text-xs font-bold text-white">₹${fmt(bill.total)}</p></div></section>
+        <section class="grid grid-cols-2 gap-3 sm:grid-cols-5"><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Subtotal</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.subtotal)}</p></div><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Discount</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.discount)}</p></div><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Advance</p><p class="mt-1 text-xs font-bold">₹${fmt(bill.advance)}</p></div><div class="rounded-xl border border-slate-200 bg-white p-3"><p class="text-[9px] font-bold uppercase text-slate-400">Balance</p><p class="mt-1 text-xs font-bold">₹${fmt(getBalanceDue(bill))}</p></div><div class="rounded-xl bg-violet-600 p-3"><p class="text-[9px] font-bold uppercase text-violet-200">Invoice total</p><p class="mt-1 text-xs font-bold text-white">₹${fmt(getSaleTotal(bill))}</p></div></section>
         ${extraFields ? `<section class="rounded-2xl border border-slate-200 bg-white p-5"><h4 class="mb-1 text-xs font-bold uppercase tracking-wider text-slate-600">Other saved details</h4><div class="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">${extraFields}</div></section>` : ''}
       </div>`;
     document.getElementById('billDetailsModal').classList.remove('hidden');
@@ -787,8 +826,10 @@ function editOrPayBill(index) {
     showBillDetails(index);
 }
 
-function printInvoice(index) {
-    const bill = allBills[index];
+async function printInvoice(index) {
+    let bill;
+    try { bill = await ensureBillDetails(index); }
+    catch (error) { alert(error.message || 'Could not load invoice details.'); return; }
     if (!bill) return;
     const printWindow = window.open('', '', 'width=380,height=640');
     if (!printWindow) return;
@@ -813,11 +854,13 @@ function buildInvoiceReceipt(bill) {
         return `<div class="item${menuPrice > sellingPrice ? ' item-discounted' : ''}"><div class="item-name">${capitalizeItemName(item.name)}</div><div class="item-qty">${quantity}</div><div class="item-price">₹${fmt(sellingPrice * quantity)}</div></div>${priceDetails}`;
     }).join('') || '<div class="center">No item details available</div>';
     const delivery = bill.deliveryDate ? `<div class="bold">DELIVERY DATE: ${bill.deliveryDate}${bill.deliveryTime ? ` ${bill.deliveryTime}` : ''}</div>` : '';
-    return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic;">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(bill.total)}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
+    return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic;">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total">Payment mode: ${getPaymentSummary(bill)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(getBalanceDue(bill))}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
 }
 
 async function downloadInvoice(index, printInstead = false, printWindow = null) {
-    const bill = allBills[index];
+    let bill;
+    try { bill = await ensureBillDetails(index); }
+    catch (error) { alert(error.message || 'Could not load invoice details.'); return; }
     if (!bill) return;
     try {
         if (!window.jspdf?.jsPDF) throw new Error('PDF library is unavailable');
@@ -880,7 +923,7 @@ async function downloadInvoice(index, printInstead = false, printWindow = null) 
         amount(`Subtotal: Rs. ${fmt(bill.subtotal)}`);
         amount(`Discount: Rs. ${fmt(bill.discount)}`);
         amount(`Advance Paid: Rs. ${fmt(bill.advance)}`, 'bold');
-        amount(`Balance: Rs. ${fmt(bill.total)}`, 'bold', 8);
+        amount(`Balance: Rs. ${fmt(getBalanceDue(bill))}`, 'bold', 8);
         line();
         centered('Also on swiggy | zomato', 6, 'bold');
         centered("powered by Hanief multiventures", 6, 'italic');
@@ -904,7 +947,7 @@ async function deleteInvoice(index) {
     try {
         const response = await fetch(`/api/bills/${encodeURIComponent(bill.id)}`, { method: 'DELETE' });
         if (!response.ok) throw new Error('Delete failed');
-        loadSavedBills();
+        await loadSavedBills(true);
     } catch (error) {
         alert('Could not delete this invoice.');
     }
@@ -951,7 +994,7 @@ async function downloadAllBillsPDF() {
         doc.text((b.customer || "Walk-in").substring(0, 22), 45, y);
         doc.text(b.phone || "N/A", 100, y);
         doc.text(new Date(b.date).toLocaleDateString(), 135, y);
-        doc.text(`Rs. ${fmt(b.total)}`, 196, y, { align: "right" });
+        doc.text(`Rs. ${fmt(getBalanceDue(b))}`, 196, y, { align: "right" });
         
         y += 7;
     });
@@ -980,7 +1023,12 @@ function getOrderTypeLabel(orderType) {
     return types[String(orderType || '').toLowerCase()] || 'Dine-In';
 }
 
-async function loadSavedBills() {
+function scheduleBillsFilter() {
+  clearTimeout(billsFilterTimer);
+  billsFilterTimer = setTimeout(() => loadSavedBills(), 160);
+}
+
+async function loadSavedBills(forceRefresh = false) {
   const mobileCont = document.getElementById('mobileListView');
   const desktopCont = document.getElementById('desktopTableBody');
   const search = document.getElementById('searchBills').value.toLowerCase();
@@ -989,10 +1037,23 @@ async function loadSavedBills() {
   const paymentFilterValue = document.getElementById('paymentFilter').value;
 
   try {
-    const res = await fetch('/api/bills');
-    const rawBills = await res.json();
+    if (forceRefresh) billsSummaryCache = null;
+    if (!billsSummaryCache) {
+      if (!billsSummaryRequest) {
+        billsSummaryRequest = (async () => {
+          const res = await fetch('/api/bills?summary=1');
+          if (!res.ok) throw new Error(`Invoice request failed (HTTP ${res.status}).`);
+          const payload = await res.json();
+          if (!Array.isArray(payload)) throw new Error(payload?.error || payload?.message || 'The invoice API returned an unexpected response.');
+          billsSummaryCache = payload;
+          return payload;
+        })().finally(() => { billsSummaryRequest = null; });
+      }
+      await billsSummaryRequest;
+    }
+    const rawBills = billsSummaryCache;
 
-    allBills = rawBills.sort(
+    allBills = [...rawBills].sort(
       (a, b) => new Date(b.date) - new Date(a.date)
     );
 
@@ -1019,7 +1080,7 @@ async function loadSavedBills() {
           matchesStatus = bStatus.includes(statusFilterValue.toLowerCase());
       }
 
-      const due = Math.max(0, Number((b.paymentStatus ? (b.balance ?? b.total) : b.total) || 0));
+      const due = getBalanceDue(b);
       const paymentStatus = b.paymentStatus || (due <= 0.005 ? 'paid' : 'unpaid');
       const matchesPayment = !paymentFilterValue || paymentStatus === paymentFilterValue;
 
@@ -1032,9 +1093,9 @@ async function loadSavedBills() {
 
     const invoiceValue = filteredBillsCache.reduce((sum, item) => {
       const bill = item.bill;
-      return sum + Math.max(0, Number(bill.subtotal || 0) - Number(bill.discount || 0));
+      return sum + getSaleTotal(bill);
     }, 0);
-    const dueValue = filteredBillsCache.reduce((sum, item) => sum + Math.max(0, Number(item.bill.total || 0)), 0);
+    const dueValue = filteredBillsCache.reduce((sum, item) => sum + getBalanceDue(item.bill), 0);
     document.getElementById('invoiceValue').textContent = `₹${fmt(invoiceValue)}`;
     document.getElementById('dueValue').textContent = `₹${fmt(dueValue)}`;
 
@@ -1048,11 +1109,11 @@ async function loadSavedBills() {
       const customerName = (b.customer || "Walk-in");
       const displayDate = formatDisplayDate(b.date);
       const dayLabel = getDayLabel(b.date);
-      const saleAmount = Number(b.saleTotal ?? Math.max(0, Number(b.subtotal || 0) - Number(b.discount || 0))) || 0;
+      const saleAmount = getSaleTotal(b);
       const amount = fmt(saleAmount);
       const billStatus = b.status || b.Status || 'N/A';
       const badgeStyle = getStatusBadgeStyle(billStatus);
-      const due = Math.max(0, Number((b.paymentStatus ? (b.balance ?? b.total) : b.total) || 0));
+      const due = getBalanceDue(b);
       const paymentStatus = b.paymentStatus || (due <= 0.005 ? 'paid' : 'unpaid');
       const paymentBadge = paymentStatus === 'paid'
         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -1100,7 +1161,7 @@ async function loadSavedBills() {
             <span class="inline-block text-[8px] font-bold uppercase ${badgeStyle}">
               ${billStatus}
             </span>
-            <span class="inline-flex items-center rounded-md border px-2 py-1 text-[8px] font-bold uppercase ${paymentBadge}">${paymentStatus}</span>
+            <span class="inline-flex items-center rounded-md border px-2 py-1 text-[8px] font-bold uppercase ${paymentBadge}">${paymentStatus} · ${escapeHtml(getPaymentSummary(b))}</span>
             <div class="flex items-center gap-2">
               <button onclick="showAmountBreakdown(${globalIndex})" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg font-semibold">Breakdown</button>
               <button onclick="showBillDetails(${globalIndex})" class="px-3 py-1 bg-violet-600 text-white rounded-lg font-semibold">View</button>
@@ -1117,7 +1178,7 @@ async function loadSavedBills() {
             <span class="inline-block text-[9px] font-bold uppercase ${badgeStyle}">
               ${billStatus}
             </span>
-            <span class="mt-1 inline-flex rounded-md border px-2 py-1 text-[8px] font-bold uppercase ${paymentBadge}">${paymentStatus}</span>
+            <span class="mt-1 inline-flex rounded-md border px-2 py-1 text-[8px] font-bold uppercase ${paymentBadge}">${paymentStatus} · ${escapeHtml(getPaymentSummary(b))}</span>
           </td>
           <td class="px-6 py-4 text-right">
             <button onclick="showAmountBreakdown(${globalIndex})" class="bg-transparent border-none p-0 outline-none font-bold text-slate-900 text-right cursor-pointer hover:text-violet-600 transition-colors">
@@ -1143,7 +1204,10 @@ async function loadSavedBills() {
         </tr>`;
     });
   } catch(e) {
-    console.error(e);
+    console.error('Error loading invoices:', e);
+    const message = escapeHtml(e?.message || 'Could not load invoices. Please refresh and try again.');
+    mobileCont.innerHTML = `<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">${message}</div>`;
+    desktopCont.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-sm font-medium text-rose-700">${message}</td></tr>`;
   }
 }
 
@@ -1159,7 +1223,7 @@ async function setInvoicePaymentStatus(index, paymentStatus) {
       body: JSON.stringify({ paymentStatus })
     });
     if (!response.ok) throw new Error('Payment status update failed');
-    await loadSavedBills();
+    await loadSavedBills(true);
   } catch (error) {
     console.error(error);
     alert('Could not update this bill payment status. Please try again.');

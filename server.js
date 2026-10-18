@@ -132,6 +132,9 @@ const BillSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: String, default: '' },
     packagedTime: {
         type: String, 
         default: ""
@@ -264,6 +267,24 @@ const isAuthenticated = (req, res, next) => {
     }
 };
 
+const requireAdmin = async (req, res, next) => {
+    try {
+        if (!req.session || !req.session.user) {
+            return res.status(401).json({ error: 'Unauthorized. Please login.' });
+        }
+        const user = await User.findOne({ username: req.session.user }).select('username role').lean();
+        const isAdmin = String(user?.role || '').toLowerCase() === 'admin' || String(user?.username || '').toLowerCase() === 'admin';
+        if (!isAdmin) {
+            return res.status(403).json({ error: 'Access denied, contact administration.' });
+        }
+        req.currentUser = user;
+        return next();
+    } catch (error) {
+        console.error('Could not verify admin access:', error);
+        return res.status(500).json({ error: 'Could not verify admin access.' });
+    }
+};
+
 // ROUTES
 app.get('/api/current-user', async (req, res) => {
     if (req.session && req.session.user) {
@@ -352,7 +373,7 @@ app.get('/api/next-bill-id', async (req, res) => {
 app.get('/api/bills', async (req, res) => {
     try {
         const isSummary = req.query.summary === '1';
-        const query = Bill.find().sort({ date: -1 }).lean();
+        const query = Bill.find({ isDeleted: { $ne: true } }).sort({ date: -1 }).lean();
         if (isSummary) {
             // List views need payment and delivery metadata, but item arrays and unrelated fields
             // make the all-bills response unnecessarily large.
@@ -370,7 +391,7 @@ app.get('/api/bills', async (req, res) => {
 app.get('/api/bills/:id', async (req, res) => {
     try {
         const billId = req.params.id;
-        const bill = await Bill.findOne({ $or: [{ id: billId }, { invoiceNo: billId }] }).lean(); 
+        const bill = await Bill.findOne({ isDeleted: { $ne: true }, $or: [{ id: billId }, { invoiceNo: billId }] }).lean(); 
         
         if (!bill) {
             return res.status(404).json({ message: "Bill not found" });
@@ -393,11 +414,12 @@ app.post('/api/bills', async (req, res) => {
         const saleTotal = Number.isFinite(subtotal)
             ? Math.max(0, subtotal - discount)
             : Math.max(0, requestedTotal + requestedAdvance);
-        let paymentMode = String(data.paymentMode || data.payMethod || (data.orderSource === 'ONLINE' ? 'online' : 'unrecorded')).toLowerCase();
+        let paymentMode = String(data.paymentMode || data.payMethod || (data.orderSource === 'ONLINE' ? 'upi' : 'unrecorded')).toLowerCase();
+        if (paymentMode === 'online') paymentMode = 'upi';
         let paymentBreakdown = Array.isArray(data.paymentBreakdown)
-            ? data.paymentBreakdown.map(payment => ({ mode: String(payment.mode || '').toLowerCase(), amount: Math.max(0, Number(payment.amount) || 0) })).filter(payment => ['cash', 'online'].includes(payment.mode) && payment.amount > 0)
+            ? data.paymentBreakdown.map(payment => ({ mode: String(payment.mode || '').toLowerCase(), amount: Math.max(0, Number(payment.amount) || 0) })).map(payment => payment.mode === 'online' ? { ...payment, mode: 'upi' } : payment).filter(payment => ['cash', 'upi', 'debitcard'].includes(payment.mode) && payment.amount > 0)
             : [];
-        if (!['cash', 'online', 'split', 'unpaid', 'unrecorded'].includes(paymentMode)) paymentMode = 'unrecorded';
+        if (!['cash', 'upi', 'debitcard', 'split', 'unpaid', 'unrecorded'].includes(paymentMode)) paymentMode = 'unrecorded';
         let advance = data.orderSource === 'ONLINE' ? saleTotal : Math.min(saleTotal, requestedAdvance);
         if (paymentMode === 'unpaid') {
             advance = 0;
@@ -412,12 +434,11 @@ app.post('/api/bills', async (req, res) => {
                 return { ...payment, amount };
             }).filter(payment => payment.amount > 0);
         } else {
-            paymentBreakdown = advance > 0 && ['cash', 'online'].includes(paymentMode)
+            paymentBreakdown = advance > 0 && ['cash', 'upi', 'debitcard'].includes(paymentMode)
                 ? [{ mode: paymentMode, amount: advance }]
                 : [];
         }
         const balance = Math.max(0, saleTotal - advance);
-        if (advance <= 0.005) paymentMode = 'unpaid';
         const paymentStatus = balance <= 0.005 ? 'paid' : 'unpaid';
       // Determine order status based on order type
         let initialStatus = 'complete'; // Default for dine-in
@@ -455,7 +476,7 @@ app.patch('/api/bills/:id/payment', async (req, res) => {
             return res.status(400).json({ error: 'Payment status must be paid or unpaid.' });
         }
 
-        const bill = await Bill.findOne({ id: req.params.id });
+        const bill = await Bill.findOne({ id: req.params.id, isDeleted: { $ne: true } });
         if (!bill) return res.status(404).json({ error: 'Bill not found.' });
 
         const storedSaleTotal = Number(bill.saleTotal);
@@ -470,7 +491,8 @@ app.patch('/api/bills/:id/payment', async (req, res) => {
         const balance = Math.max(0, saleTotal - advance);
 
         const existingPayments = Array.isArray(bill.paymentBreakdown) ? bill.paymentBreakdown : [];
-        let paymentMode = String(bill.paymentMode || 'cash').toLowerCase();
+        let paymentMode = String(req.body.paymentMode || bill.paymentMode || (bill.orderSource === 'ONLINE' ? 'upi' : bill.payMethod || 'cash')).toLowerCase();
+        if (paymentMode === 'online') paymentMode = 'upi';
         let paymentBreakdown = [];
         if (advance > 0) {
             if (paymentMode === 'split' && existingPayments.length) {
@@ -484,11 +506,11 @@ app.patch('/api/bills/:id/payment', async (req, res) => {
                     return { mode: payment.mode, amount };
                 });
             } else {
-                if (!['cash', 'online'].includes(paymentMode)) paymentMode = 'cash';
+                if (!['cash', 'upi', 'debitcard'].includes(paymentMode)) paymentMode = 'cash';
                 paymentBreakdown = [{ mode: paymentMode, amount: advance }];
             }
         } else {
-            paymentMode = 'unpaid';
+            if (!['cash', 'upi', 'debitcard', 'split'].includes(paymentMode)) paymentMode = 'unpaid';
         }
 
         bill.saleTotal = saleTotal;
@@ -535,7 +557,7 @@ app.patch('/api/bills/:id/status', async (req, res) => {
 
         // Example using MongoDB / Mongoose:
         const updatedBill = await Bill.findOneAndUpdate(
-            { $or: [{ id: billId }, { invoiceNo: billId }] },
+            { isDeleted: { $ne: true }, $or: [{ id: billId }, { invoiceNo: billId }] },
             { 
                 $set: updateData
             },
@@ -558,7 +580,7 @@ app.patch('/api/bills/:id/packaging', async (req, res) => {
         const { packagedOn, packagedTime } = req.body;
 
         const updatedBill = await Bill.findOneAndUpdate(
-            { id: billId },
+            { id: billId, isDeleted: { $ne: true } },
             { 
                 $set: { 
                     packagedOn: packagedOn, 
@@ -635,6 +657,7 @@ app.get('/api/riders/:id/deliveries', async (req, res) => {
         if (rider.riderCode) assignmentMatch.push({ riderCode: rider.riderCode });
         const deliveries = await Bill.find({
             $and: [
+                { isDeleted: { $ne: true } },
                 { $or: assignmentMatch },
                 { $or: [{ Status: /^completed?$/i }, { orderStatus: /^completed?$/i }] }
             ]
@@ -693,7 +716,7 @@ app.put('/api/bills/:id', async (req, res) => {
         const updateData = req.body;
 
         if (Object.hasOwn(updateData, 'advance') || Object.hasOwn(updateData, 'paymentStatus')) {
-            const existingBill = await Bill.findById(billId);
+            const existingBill = await Bill.findOne({ _id: billId, isDeleted: { $ne: true } });
             if (!existingBill) return res.status(404).send('Bill not found');
 
             const storedSaleTotal = Number(existingBill.saleTotal);
@@ -713,14 +736,14 @@ app.put('/api/bills/:id', async (req, res) => {
             updateData.balance = balance;
             updateData.paymentStatus = balance <= 0.005 ? 'paid' : 'unpaid';
             const requestedMode = String(updateData.paymentMode || existingBill.paymentMode || 'cash').toLowerCase();
-            updateData.paymentMode = ['cash', 'online', 'split'].includes(requestedMode) ? requestedMode : (paidAmount > 0 ? 'cash' : 'unpaid');
+            updateData.paymentMode = requestedMode === 'online' ? 'upi' : (['cash', 'upi', 'debitcard', 'split'].includes(requestedMode) ? requestedMode : (paidAmount > 0 ? 'cash' : 'unpaid'));
             if (Array.isArray(updateData.paymentBreakdown)) {
                 updateData.paymentBreakdown = updateData.paymentBreakdown
                     .map(payment => ({ mode: String(payment.mode || '').toLowerCase(), amount: Math.max(0, Number(payment.amount) || 0) }))
-                    .filter(payment => ['cash', 'online'].includes(payment.mode) && payment.amount > 0);
+                    .map(payment => payment.mode === 'online' ? { ...payment, mode: 'upi' } : payment)
+                    .filter(payment => ['cash', 'upi', 'debitcard'].includes(payment.mode) && payment.amount > 0);
             } else if (paidAmount <= 0) {
                 updateData.paymentBreakdown = [];
-                updateData.paymentMode = 'unpaid';
             } else {
                 const oldBreakdown = Array.isArray(existingBill.paymentBreakdown) ? existingBill.paymentBreakdown : [];
                 const oldPaid = oldBreakdown.reduce((sum, payment) => sum + Math.max(0, Number(payment.amount) || 0), 0);
@@ -734,14 +757,14 @@ app.put('/api/bills/:id', async (req, res) => {
                         return { mode: payment.mode, amount };
                     });
                 } else {
-                    const mode = ['cash', 'online'].includes(updateData.paymentMode) ? updateData.paymentMode : 'cash';
+                    const mode = ['cash', 'upi', 'debitcard'].includes(updateData.paymentMode) ? updateData.paymentMode : 'cash';
                     updateData.paymentMode = mode;
                     updateData.paymentBreakdown = [{ mode, amount: paidAmount }];
                 }
             }
         }
 
-        const updatedBill = await Bill.findByIdAndUpdate(billId, updateData, { returnDocument: 'after' });
+        const updatedBill = await Bill.findOneAndUpdate({ _id: billId, isDeleted: { $ne: true } }, updateData, { returnDocument: 'after' });
         
         if (!updatedBill) {
             return res.status(404).send("Bill not found");
@@ -769,11 +792,52 @@ app.get('/api/bills/:id/history', async (req, res) => {
     } catch (err) { res.status(500).send(err); }
 });
 
-app.delete('/api/bills/:id', async (req, res) => {
+app.get('/api/recently-deleted-bills', isAuthenticated, async (req, res) => {
     try {
-        await Bill.findOneAndDelete({ id: req.params.id });
-        res.json({ success: true });
+        const bills = await Bill.find({ isDeleted: true })
+            .sort({ deletedAt: -1 })
+            .limit(500)
+            .lean();
+        res.json(bills);
+    } catch (err) {
+        console.error('Failed to load recently deleted bills:', err);
+        res.status(500).json({ error: 'Failed to load recently deleted bills.' });
+    }
+});
+
+app.delete('/api/bills/:id', isAuthenticated, async (req, res) => {
+    try {
+        const currentUser = await User.findOne({ username: req.session.user }).select('username').lean();
+        if (!currentUser) return res.status(401).json({ error: 'Unauthorized. Please login.' });
+        const bill = await Bill.findOneAndUpdate(
+            { id: req.params.id, isDeleted: { $ne: true } },
+            { $set: { isDeleted: true, deletedAt: new Date(), deletedBy: currentUser.username } },
+            { new: true }
+        ).select('id deletedAt deletedBy');
+        if (!bill) return res.status(404).json({ error: 'Bill not found.' });
+        try {
+            await new History({
+                bill_id: bill.id,
+                edit_date: new Date().toLocaleString(),
+                change_log: `Invoice moved to Recently Deleted by ${currentUser.username}`
+            }).save();
+        } catch (historyError) {
+            console.error('Could not record invoice move to recently deleted:', historyError);
+        }
+        res.json({ success: true, message: 'Bill moved to Recently Deleted Invoices.', bill });
     } catch (err) { res.status(500).send(err); }
+});
+
+app.delete('/api/recently-deleted-bills/:id', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+        const bill = await Bill.findOneAndDelete({ id: req.params.id, isDeleted: true });
+        if (!bill) return res.status(404).json({ error: 'Recently deleted invoice not found.' });
+        await History.deleteMany({ bill_id: bill.id });
+        res.json({ success: true, message: 'Invoice permanently deleted.' });
+    } catch (err) {
+        console.error('Failed to permanently delete bill:', err);
+        res.status(500).json({ error: 'Failed to permanently delete invoice.' });
+    }
 });
 
 app.get('/api/menu', async (req, res) => {
@@ -863,7 +927,7 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/customers/:phone/history', async (req, res) => {
     try {
         const { phone } = req.params;
-        const orders = await Bill.find({ phone: phone }).sort({ date: -1, _id: -1 });
+        const orders = await Bill.find({ phone: phone, isDeleted: { $ne: true } }).sort({ date: -1, _id: -1 });
 
         let profile = { name: "", address: "" };
         if (orders.length > 0) {
@@ -945,7 +1009,7 @@ app.patch('/api/bills/:id/cancel', async (req, res) => {
 
     try {
         const result = await Bill.updateOne(
-            { id: billId }, 
+            { id: billId, isDeleted: { $ne: true } }, 
             { 
                 $set: { 
                     // Keep the two legacy status fields in sync. Older screens read

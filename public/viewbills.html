@@ -248,6 +248,7 @@
                         <span id="addUserText">Add User</span>
                     </a>
                 </div>
+                            <a href="recentlydeleted.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group"><i class="fa-solid fa-trash-can w-5 h-5 mr-3 text-rose-500"></i>Recently Deleted Invoices</a>
             </nav>
         </div>
 
@@ -386,7 +387,7 @@
 
                   <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center justify-between relative overflow-hidden">
                     <div>
-                      <p class="text-[11px] font-medium text-slate-400">Balance due</p>
+                      <p class="text-[11px] font-medium text-slate-400">Remaining balance</p>
                       <h3 id="dueValue" class="mt-1 text-2xl font-bold text-slate-900 tracking-tight">₹0.00</h3>
                       <p class="mt-1 text-[10px] text-amber-600 font-semibold">Pending Amount</p>
                     </div>
@@ -500,8 +501,12 @@
         <span>Discount Allowed (-)</span>
         <span id="modalDiscount" class="font-bold text-slate-800">₹0.00</span>
       </div>
+      <div class="flex justify-between items-center text-slate-700 pb-2 border-b border-slate-100 font-bold">
+        <span>Total Bill</span>
+        <span id="modalSaleTotal">₹0.00</span>
+      </div>
       <div class="flex justify-between items-center text-slate-500 pb-2 border-b border-slate-100">
-        <span>Advance Collected (-)</span>
+        <span>Advance Received (-)</span>
         <span id="modalAdvance" class="font-bold text-slate-800">₹0.00</span>
       </div>
       <div class="flex justify-between items-center pt-2 text-sm font-black">
@@ -647,9 +652,9 @@ function getSaleTotal(bill) {
 
 function getPaymentSummary(bill) {
   const payments = Array.isArray(bill?.paymentBreakdown) ? bill.paymentBreakdown : [];
-  if (payments.length) return payments.map(payment => `${String(payment.mode || '').toUpperCase()} ₹${fmt(payment.amount)}`).join(' + ');
+  if (payments.length) return payments.map(payment => `${({ cash: 'CASH', online: 'UPI', upi: 'UPI', debitcard: 'DEBIT CARD' })[String(payment.mode || '').toLowerCase()] || String(payment.mode || '').toUpperCase()} ₹${fmt(payment.amount)}`).join(' + ');
   const mode = String(bill?.paymentMode || bill?.payMethod || (bill?.orderSource === 'ONLINE' ? 'online' : '')).toLowerCase();
-  return ({ cash: 'Cash', online: 'Online', split: 'Split', unpaid: 'Unpaid', unrecorded: 'Not recorded' })[mode] || 'Not recorded';
+  return ({ cash: 'Cash', online: 'UPI', upi: 'UPI', debitcard: 'Debit Card', split: 'Split Payment', unpaid: 'Unpaid', unrecorded: 'Not recorded' })[mode] || 'Not recorded';
 }
 
 function formatDisplayDate(dateString) {
@@ -713,6 +718,7 @@ function showAmountBreakdown(index) {
     
     document.getElementById('modalSubtotal').textContent = `₹${fmt(b.subtotal)}`;
     document.getElementById('modalDiscount').textContent = `₹${fmt(b.discount)}`;
+    document.getElementById('modalSaleTotal').textContent = `₹${fmt(getSaleTotal(b))}`;
     document.getElementById('modalAdvance').textContent = `₹${fmt(b.advance)}`;
     
     const balance = getBalanceDue(b);
@@ -854,7 +860,7 @@ function buildInvoiceReceipt(bill) {
         return `<div class="item${menuPrice > sellingPrice ? ' item-discounted' : ''}"><div class="item-name">${capitalizeItemName(item.name)}</div><div class="item-qty">${quantity}</div><div class="item-price">₹${fmt(sellingPrice * quantity)}</div></div>${priceDetails}`;
     }).join('') || '<div class="center">No item details available</div>';
     const delivery = bill.deliveryDate ? `<div class="bold">DELIVERY DATE: ${bill.deliveryDate}${bill.deliveryTime ? ` ${bill.deliveryTime}` : ''}</div>` : '';
-    return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic;">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Advance Paid: ₹${fmt(bill.advance)}</div><div class="total">Payment mode: ${getPaymentSummary(bill)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Balance: ₹${fmt(getBalanceDue(bill))}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
+    return `<div class="receipt"><div class="center"><img class="receipt-logo" src="/invoice-logo.jpg" alt="Gee-Ech logo"></div><div class="center" style="font-size:10px;font-style:italic;">A UNIT OF GEE ECH BAKERS</div><div class="center" style="font-size:11px;">FSSAI NO : 11017430000562</div><div class="center" style="font-size:11px;font-style:italic;">Geeechbakery@gmail.com</div><div class="center" style="font-size:11px;">Ziyarat Batamaloo, Srinagar</div><div class="center bold" style="font-size:11px;">6005228690</div><hr><div class="bold">BILL: ${bill.id}</div><div>DATE: ${new Date(bill.date).toLocaleDateString('en-GB')}</div><div>CUSTOMER: ${(bill.customer || 'WALK-IN').toUpperCase()}</div><div>PHONE: ${bill.phone || 'N/A'}</div>${bill.address ? `<div>ADDRESS: ${bill.address}</div>` : ''}${delivery}<hr><div class="item bold"><div class="item-name">Item</div><div class="item-qty">Qty</div><div class="item-price">Price</div></div><div class="items">${items}</div><hr><div class="total">Subtotal: ₹${fmt(bill.subtotal)}</div><div class="total">Discount: ₹${fmt(bill.discount)}</div><div class="total bold">Total Bill: ₹${fmt(getSaleTotal(bill))}</div><div class="total bold">Advance Received: ₹${fmt(bill.advance)}</div><div class="total">Payment mode: ${getPaymentSummary(bill)}</div><div class="total" style="font-weight:900;font-size:14px;margin-top:2px;">Remaining Balance: ₹${fmt(getBalanceDue(bill))}</div><hr><div class="center footer">Also on swiggy | zomato</div><div class="center powered">powered by Hanief multiventures</div></div>`;
 }
 
 async function downloadInvoice(index, printInstead = false, printWindow = null) {
@@ -922,8 +928,9 @@ async function downloadInvoice(index, printInstead = false, printWindow = null) 
         line();
         amount(`Subtotal: Rs. ${fmt(bill.subtotal)}`);
         amount(`Discount: Rs. ${fmt(bill.discount)}`);
-        amount(`Advance Paid: Rs. ${fmt(bill.advance)}`, 'bold');
-        amount(`Balance: Rs. ${fmt(getBalanceDue(bill))}`, 'bold', 8);
+        amount(`Total Bill: Rs. ${fmt(getSaleTotal(bill))}`, 'bold');
+        amount(`Advance Received: Rs. ${fmt(bill.advance)}`, 'bold');
+        amount(`Remaining Balance: Rs. ${fmt(getBalanceDue(bill))}`, 'bold', 8);
         line();
         centered('Also on swiggy | zomato', 6, 'bold');
         centered("powered by Hanief multiventures", 6, 'italic');
@@ -941,15 +948,45 @@ async function downloadInvoice(index, printInstead = false, printWindow = null) 
     }
 }
 
+function showInvoiceNotice(title, message, tone = 'success') {
+  const success = tone === 'success';
+  const overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm';
+  overlay.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"><div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full ${success ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}"><i class="fa-solid ${success ? 'fa-check' : 'fa-shield-halved'} text-2xl"></i></div><p class="mt-5 text-[10px] font-black uppercase tracking-[.18em] ${success ? 'text-emerald-600' : 'text-amber-600'}">${success ? 'Completed' : 'Permission required'}</p><h2 class="mt-2 text-xl font-bold text-slate-900"></h2><p class="mt-2 text-sm leading-6 text-slate-500"></p><button class="mt-6 w-full rounded-xl ${success ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-900 hover:bg-slate-800'} px-4 py-3 text-sm font-bold text-white">Close</button></div>`;
+  overlay.querySelector('h2').textContent = title;
+  overlay.querySelector('p.text-sm').textContent = message;
+  const close = () => overlay.remove();
+  overlay.querySelector('button').addEventListener('click', close);
+  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+  document.body.appendChild(overlay);
+}
+
+function confirmMoveInvoice() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm';
+    overlay.innerHTML = '<div class="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"><div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600"><i class="fa-solid fa-trash-can text-2xl"></i></div><p class="mt-5 text-[10px] font-black uppercase tracking-[.18em] text-amber-600">Please confirm</p><h2 class="mt-2 text-xl font-bold text-slate-900">Move this invoice?</h2><p class="mt-2 text-sm leading-6 text-slate-500">Are you sure you want to move this invoice to Recently Deleted Invoices?</p><div class="mt-6 flex gap-3"><button data-choice="cancel" class="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">Cancel</button><button data-choice="confirm" class="flex-1 rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white hover:bg-rose-700">Move invoice</button></div></div>';
+    const finish = answer => { overlay.remove(); resolve(answer); };
+    overlay.querySelector('[data-choice="cancel"]').addEventListener('click', () => finish(false));
+    overlay.querySelector('[data-choice="confirm"]').addEventListener('click', () => finish(true));
+    overlay.addEventListener('click', event => { if (event.target === overlay) finish(false); });
+    document.body.appendChild(overlay);
+  });
+}
+
 async function deleteInvoice(index) {
     const bill = allBills[index];
-    if (!bill || !confirm(`Delete invoice #${bill.id}? This cannot be undone.`)) return;
+    if (!bill) return;
+    if (!await confirmMoveInvoice()) return;
     try {
         const response = await fetch(`/api/bills/${encodeURIComponent(bill.id)}`, { method: 'DELETE' });
-        if (!response.ok) throw new Error('Delete failed');
+        const result = await response.json().catch(() => ({}));
+        if (response.status === 403) return showInvoiceNotice('Access denied', 'Please contact the administration for permission to delete this invoice.', 'warning');
+        if (!response.ok) throw new Error(result.error || 'Could not move invoice to recently deleted.');
+        showInvoiceNotice('Invoice moved successfully', 'The bill has been removed and moved to the Recently Deleted Invoices folder.');
         await loadSavedBills(true);
     } catch (error) {
-        alert('Could not delete this invoice.');
+        showInvoiceNotice('Could not move invoice', error.message || 'Please try again.', 'warning');
     }
 }
 
@@ -1216,11 +1253,16 @@ async function setInvoicePaymentStatus(index, paymentStatus) {
   if (!bill) return;
   const action = paymentStatus === 'paid' ? 'mark this bill as paid' : 'mark this bill as unpaid';
   if (!confirm(`Are you sure you want to ${action}?`)) return;
+  let paymentMode = bill.paymentMode;
+  if (paymentStatus === 'paid' && ['unpaid', 'unrecorded', undefined, null, ''].includes(paymentMode)) {
+    paymentMode = prompt('Enter payment mode: cash, upi, or debitcard', 'upi')?.trim().toLowerCase();
+    if (!['cash', 'upi', 'debitcard'].includes(paymentMode)) return alert('Choose cash, upi, or debitcard to record this payment.');
+  }
   try {
     const response = await fetch(`/api/bills/${encodeURIComponent(bill.id)}/payment`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentStatus })
+      body: JSON.stringify({ paymentStatus, paymentMode })
     });
     if (!response.ok) throw new Error('Payment status update failed');
     await loadSavedBills(true);

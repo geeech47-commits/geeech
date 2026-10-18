@@ -62,7 +62,8 @@
 <body class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden">
 <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 z-30 hidden bg-slate-900/50 md:hidden"></div>
 <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-40 flex h-full w-64 -translate-x-full flex-col justify-between border-r border-slate-200 bg-white text-slate-700 transition-transform duration-300 md:translate-x-0">
-  <div class="flex-1 overflow-y-auto"><div class="relative flex justify-center border-b border-slate-100 px-5 py-6"><button onclick="toggleSidebar()" class="absolute right-3 top-4 p-1 text-slate-400 md:hidden"><i class="fa-solid fa-xmark text-xl"></i></button><img src="logo.jpeg" alt="Gee-Ech" class="w-36 h-auto"></div><nav class="space-y-1 px-3 py-4"><a href="homepage.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-house mr-3 w-5 text-violet-500"></i>Dashboard</a><a href="createbill.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-calculator mr-3 w-5 text-blue-500"></i>New Bill</a><a href="punchorder.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-basket-shopping mr-3 w-5 text-indigo-500"></i>Pending Deliveries</a><a href="viewbills.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-file-invoice-dollar mr-3 w-5 text-emerald-500"></i>Invoices</a><a href="todaysorders.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-truck-fast mr-3 w-5 text-amber-500"></i>Delivered Orders</a><a href="editmenu.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-boxes-stacked mr-3 w-5 text-purple-500"></i>Menu Updation</a><a href="cancelledorder.html" class="flex items-center rounded-xl bg-rose-50 px-4 py-2.5 font-semibold text-rose-700"><i class="fa-solid fa-ban mr-3 w-5 text-rose-600"></i>Cancelled Orders</a></nav></div>
+  <div class="flex-1 overflow-y-auto"><div class="relative flex justify-center border-b border-slate-100 px-5 py-6"><button onclick="toggleSidebar()" class="absolute right-3 top-4 p-1 text-slate-400 md:hidden"><i class="fa-solid fa-xmark text-xl"></i></button><img src="logo.jpeg" alt="Gee-Ech" class="w-36 h-auto"></div><nav class="space-y-1 px-3 py-4"><a href="homepage.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-house mr-3 w-5 text-violet-500"></i>Dashboard</a><a href="createbill.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-calculator mr-3 w-5 text-blue-500"></i>New Bill</a><a href="punchorder.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-basket-shopping mr-3 w-5 text-indigo-500"></i>Pending Deliveries</a><a href="viewbills.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-file-invoice-dollar mr-3 w-5 text-emerald-500"></i>Invoices</a><a href="todaysorders.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-truck-fast mr-3 w-5 text-amber-500"></i>Delivered Orders</a><a href="editmenu.html" class="flex items-center rounded-xl px-4 py-2.5 font-medium text-slate-600 hover:bg-slate-50"><i class="fa-solid fa-boxes-stacked mr-3 w-5 text-purple-500"></i>Menu Updation</a><a href="cancelledorder.html" class="flex items-center rounded-xl bg-rose-50 px-4 py-2.5 font-semibold text-rose-700"><i class="fa-solid fa-ban mr-3 w-5 text-rose-600"></i>Cancelled Orders</a>                <a href="recentlydeleted.html" class="nav-link flex items-center px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium rounded-xl transition-all group"><i class="fa-solid fa-trash-can w-5 h-5 mr-3 text-rose-500"></i>Recently Deleted Invoices</a>
+            </nav></div>
   <div class="m-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700"><i class="fa-solid fa-user text-xs"></i></div><div><p class="text-xs font-bold text-slate-800">Operations</p><span class="text-[9px] font-bold uppercase text-violet-700">Billing desk</span></div></div>
 </aside>
 <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -257,7 +258,7 @@
                         </button>
                         <div id="dropdown-${i}" class="dropdown-menu">
                             <button onclick="showInfo('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Details</button>
-                            <button onclick="deleteBill('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50">Delete Permanently</button>
+                            <button onclick="deleteBill('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50">Move to Recently Deleted</button>
                         </div>
                     </div>
                 </td>
@@ -333,18 +334,43 @@
         document.getElementById('infoModal').classList.remove('hidden');
     }
 
+    function showInvoiceNotice(title, message, tone = 'success') {
+        const success = tone === 'success';
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm';
+        overlay.innerHTML = `<div class="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"><div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full ${success ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}"><i class="fa-solid ${success ? 'fa-check' : 'fa-shield-halved'} text-2xl"></i></div><p class="mt-5 text-[10px] font-black uppercase tracking-[.18em] ${success ? 'text-emerald-600' : 'text-amber-600'}">${success ? 'Completed' : 'Permission required'}</p><h2 class="mt-2 text-xl font-bold text-slate-900"></h2><p class="mt-2 text-sm leading-6 text-slate-500"></p><button class="mt-6 w-full rounded-xl ${success ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-900 hover:bg-slate-800'} px-4 py-3 text-sm font-bold text-white">Close</button></div>`;
+        overlay.querySelector('h2').textContent = title;
+        overlay.querySelector('p.text-sm').textContent = message;
+        const close = () => overlay.remove();
+        overlay.querySelector('button').addEventListener('click', close);
+        overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+        document.body.appendChild(overlay);
+    }
+
+    function confirmMoveInvoice() {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm';
+            overlay.innerHTML = '<div class="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl"><div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600"><i class="fa-solid fa-trash-can text-2xl"></i></div><p class="mt-5 text-[10px] font-black uppercase tracking-[.18em] text-amber-600">Please confirm</p><h2 class="mt-2 text-xl font-bold text-slate-900">Move this bill?</h2><p class="mt-2 text-sm leading-6 text-slate-500">Are you sure you want to move this bill to Recently Deleted Invoices?</p><div class="mt-6 flex gap-3"><button data-choice="cancel" class="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">Cancel</button><button data-choice="confirm" class="flex-1 rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white hover:bg-rose-700">Move bill</button></div></div>';
+            const finish = answer => { overlay.remove(); resolve(answer); };
+            overlay.querySelector('[data-choice="cancel"]').addEventListener('click', () => finish(false));
+            overlay.querySelector('[data-choice="confirm"]').addEventListener('click', () => finish(true));
+            overlay.addEventListener('click', event => { if (event.target === overlay) finish(false); });
+            document.body.appendChild(overlay);
+        });
+    }
+
     async function deleteBill(billId) {
-        if(confirm(`Delete transaction ${billId} permanently? This cannot be reversed.`)) {
-            try {
-                const response = await fetch(`/api/bills/${billId}`, { method: 'DELETE' });
-                if (response.ok) {
-                    loadCancelledBills();
-                } else {
-                    alert("Failed to delete records.");
-                }
-            } catch (err) {
-                console.error(err);
-            }
+        if (!await confirmMoveInvoice()) return;
+        try {
+            const response = await fetch(`/api/bills/${encodeURIComponent(billId)}`, { method: 'DELETE' });
+            const result = await response.json().catch(() => ({}));
+            if (response.status === 403) return showInvoiceNotice('Access denied', 'Please contact the administration for permission to delete this invoice.', 'warning');
+            if (!response.ok) throw new Error(result.error || 'Could not move bill to recently deleted.');
+            showInvoiceNotice('Invoice moved successfully', 'The bill has been removed and moved to the Recently Deleted Invoices folder.');
+            await loadCancelledBills();
+        } catch (err) {
+            showInvoiceNotice('Could not move invoice', err.message || 'Please try again.', 'warning');
         }
     }
 

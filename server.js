@@ -426,7 +426,10 @@ app.post('/api/bills', async (req, res) => {
             paymentBreakdown = [];
         } else if (paymentMode === 'split') {
             const splitTotal = paymentBreakdown.reduce((sum, payment) => sum + payment.amount, 0);
-            advance = Math.min(saleTotal, splitTotal);
+            if (Math.abs(splitTotal - saleTotal) > 0.01) {
+                return res.status(400).json({ error: 'Split payment amounts must equal the bill total.' });
+            }
+            advance = saleTotal;
             let remaining = advance;
             paymentBreakdown = paymentBreakdown.map(payment => {
                 const amount = Math.min(payment.amount, remaining);
@@ -434,12 +437,13 @@ app.post('/api/bills', async (req, res) => {
                 return { ...payment, amount };
             }).filter(payment => payment.amount > 0);
         } else {
-            paymentBreakdown = advance > 0 && ['cash', 'upi', 'debitcard'].includes(paymentMode)
-                ? [{ mode: paymentMode, amount: advance }]
+            advance = saleTotal;
+            paymentBreakdown = ['cash', 'upi', 'debitcard'].includes(paymentMode)
+                ? [{ mode: paymentMode, amount: saleTotal }]
                 : [];
         }
         const balance = Math.max(0, saleTotal - advance);
-        const paymentStatus = balance <= 0.005 ? 'paid' : 'unpaid';
+        const paymentStatus = paymentMode === 'unpaid' ? 'unpaid' : 'paid';
       // Determine order status based on order type
         let initialStatus = 'complete'; // Default for dine-in
         const orderType = data.orderType || 'indine'; // <-- Bug: mismatch with 'dine-in'

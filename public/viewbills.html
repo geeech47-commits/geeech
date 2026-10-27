@@ -443,6 +443,7 @@
                 </div>
 
                 <div id="mobileListView" class="md:hidden space-y-3"></div>
+                <div id="mobileBillsPagination" class="md:hidden flex items-center justify-between py-3"></div>
 
                 <!-- DESKTOP TABLE SHELL -->
                 <div class="table-shell hidden md:block overflow-hidden bg-white border border-slate-200 rounded-2xl mb-6">
@@ -464,11 +465,11 @@
                     <span id="tableCount" class="text-xs text-slate-500 font-normal">0 invoices</span>
                     
                     <div class="flex items-center gap-1">
-                      <button class="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-slate-50 transition">
+                      <button id="prevBillsPage" onclick="changeBillsPage(-1)" class="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-slate-50 transition">
                         <i class="fa-solid fa-chevron-left text-[10px]"></i>
                       </button>
-                      <button class="w-8 h-8 rounded-lg bg-violet-600 text-white font-semibold text-xs flex items-center justify-center shadow-sm">1</button>
-                      <button class="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-50 transition">
+                      <span id="billsPageLabel" class="min-w-8 text-center text-xs font-semibold text-slate-600">1 / 1</span>
+                      <button id="nextBillsPage" onclick="changeBillsPage(1)" class="w-8 h-8 rounded-lg border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-50 transition">
                         <i class="fa-solid fa-chevron-right text-[10px]"></i>
                       </button>
                     </div>
@@ -541,6 +542,8 @@ let filteredBillsCache = [];
 let billsSummaryCache = null;
 let billsSummaryRequest = null;
 let billsFilterTimer = null;
+let currentBillsPage = 1;
+const billsPageSize = 40;
 let toastTimeout = null;
 
 const scrollContainer = document.getElementById('scrollContainer');
@@ -1074,10 +1077,17 @@ function getOrderTypeLabel(orderType) {
 
 function scheduleBillsFilter() {
   clearTimeout(billsFilterTimer);
-  billsFilterTimer = setTimeout(() => loadSavedBills(), 160);
+  billsFilterTimer = setTimeout(() => { currentBillsPage = 1; loadSavedBills(); }, 160);
+}
+
+function changeBillsPage(delta) {
+  const pageCount = Math.max(1, Math.ceil(filteredBillsCache.length / billsPageSize));
+  currentBillsPage = Math.min(pageCount, Math.max(1, currentBillsPage + delta));
+  renderBillsPage();
 }
 
 async function loadSavedBills(forceRefresh = false) {
+  currentBillsPage = 1;
   const mobileCont = document.getElementById('mobileListView');
   const desktopCont = document.getElementById('desktopTableBody');
   const search = document.getElementById('searchBills').value.toLowerCase();
@@ -1148,11 +1158,38 @@ async function loadSavedBills(forceRefresh = false) {
     document.getElementById('invoiceValue').textContent = `₹${fmt(invoiceValue)}`;
     document.getElementById('dueValue').textContent = `₹${fmt(dueValue)}`;
 
+    const pageCount = Math.max(1, Math.ceil(filteredBillsCache.length / billsPageSize));
+    currentBillsPage = Math.min(currentBillsPage, pageCount);
+    renderBillsPage();
+  } catch(e) {
+    console.error('Error loading invoices:', e);
+    const message = escapeHtml(e?.message || 'Could not load invoices. Please refresh and try again.');
+    mobileCont.innerHTML = `<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">${message}</div>`;
+    desktopCont.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-sm font-medium text-rose-700">${message}</td></tr>`;
+  }
+}
+
+function renderBillsPage() {
+  const mobileCont = document.getElementById('mobileListView');
+  const desktopCont = document.getElementById('desktopTableBody');
+  const pageCount = Math.max(1, Math.ceil(filteredBillsCache.length / billsPageSize));
+  const startIndex = (currentBillsPage - 1) * billsPageSize;
+  const visibleBills = filteredBillsCache.slice(startIndex, startIndex + billsPageSize);
+  document.getElementById('tableCount').textContent = filteredBillsCache.length
+    ? `Showing ${startIndex + 1}-${startIndex + visibleBills.length} of ${filteredBillsCache.length} invoices`
+    : '0 invoices';
+  document.getElementById('billsPageLabel').textContent = `${currentBillsPage} / ${pageCount}`;
+  document.getElementById('prevBillsPage').disabled = currentBillsPage <= 1;
+  document.getElementById('nextBillsPage').disabled = currentBillsPage >= pageCount;
+  document.getElementById('mobileBillsPagination').innerHTML = filteredBillsCache.length > billsPageSize
+    ? `<button onclick="changeBillsPage(-1)" ${currentBillsPage <= 1 ? 'disabled' : ''} class="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40">Previous</button><span class="text-xs text-slate-500">Page ${currentBillsPage} of ${pageCount}</span><button onclick="changeBillsPage(1)" ${currentBillsPage >= pageCount ? 'disabled' : ''} class="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40">Next</button>`
+    : '';
+
     mobileCont.innerHTML = '';
     desktopCont.innerHTML = '';
     let lastLabel = "";
 
-    filteredBillsCache.forEach(item => {
+    visibleBills.forEach(item => {
       const b = item.bill;
       const globalIndex = item.idx;
       const customerName = (b.customer || "Walk-in");
@@ -1252,12 +1289,6 @@ async function loadSavedBills(forceRefresh = false) {
           </td>
         </tr>`;
     });
-  } catch(e) {
-    console.error('Error loading invoices:', e);
-    const message = escapeHtml(e?.message || 'Could not load invoices. Please refresh and try again.');
-    mobileCont.innerHTML = `<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">${message}</div>`;
-    desktopCont.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-sm font-medium text-rose-700">${message}</td></tr>`;
-  }
 }
 
 async function setInvoicePaymentStatus(index, paymentStatus) {

@@ -524,6 +524,20 @@
         </div>
     </div>
 
+    <div id="deletedInvoicePopup" class="fixed inset-0 z-[520] hidden items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="deletedInvoicePopupTitle" onclick="if(event.target===this)closeDeletedInvoicePopup()">
+        <div class="relative w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 text-center shadow-2xl sm:p-8">
+            <button type="button" onclick="closeDeletedInvoicePopup()" class="absolute right-4 top-4 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close notification"><i class="fa-solid fa-xmark"></i></button>
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600"><i class="fa-solid fa-box-archive text-xl"></i></div>
+            <p class="mt-5 text-[10px] font-extrabold uppercase tracking-[.18em] text-amber-600">Invoice reminder</p>
+            <h2 id="deletedInvoicePopupTitle" class="mt-2 text-xl font-extrabold text-slate-900">A deleted invoice is in the bin</h2>
+            <p id="deletedInvoicePopupMessage" class="mt-2 text-sm leading-6 text-slate-500">There is an invoice in Recently Deleted. You can review it from the deleted invoices page.</p>
+            <div class="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <button type="button" onclick="closeDeletedInvoicePopup()" class="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50">Dismiss</button>
+                <a href="recentlydeleted.html" class="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-700"><i class="fa-solid fa-arrow-up-right-from-square"></i>Review deleted invoices</a>
+            </div>
+        </div>
+    </div>
+
     <div id="allTimeSalesModal" class="fixed inset-0 z-[450] hidden items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="allTimeSalesTitle">
         <div class="flex max-h-[90vh] max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6"><div><h2 id="allTimeSalesTitle" class="text-lg font-bold text-slate-900">All-Time Sales Report</h2><p id="allTimeSalesRange" class="mt-1 text-xs text-slate-500">Totals from saved bills</p></div><button onclick="closeAllTimeSalesReport()" class="rounded-lg px-3 py-1 text-2xl text-slate-400 hover:bg-slate-100" aria-label="Close">&times;</button></div>
@@ -828,7 +842,11 @@
             }
         }
         document.getElementById('allTimeSalesModal').addEventListener('click', event => { if (event.target.id === 'allTimeSalesModal') closeAllTimeSalesReport(); });
-        document.addEventListener('keydown', event => { if (event.key === 'Escape' && !document.getElementById('allTimeSalesModal').classList.contains('hidden')) closeAllTimeSalesReport(); });
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            if (!document.getElementById('allTimeSalesModal').classList.contains('hidden')) closeAllTimeSalesReport();
+            if (!document.getElementById('deletedInvoicePopup').classList.contains('hidden')) closeDeletedInvoicePopup();
+        });
 
         let calculatedSales = { thisMonth: 0, lastMonth: 0, overall: 0 };
 
@@ -853,6 +871,11 @@
           return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
         }
 
+        let deletedInvoicePopupShown = false;
+        function closeDeletedInvoicePopup() {
+          document.getElementById('deletedInvoicePopup').classList.replace('flex', 'hidden');
+        }
+
         async function loadDeletedInvoiceNotifications() {
           const panel = document.getElementById('deletedInvoiceNotifications');
           const list = document.getElementById('deletedInvoiceNotificationList');
@@ -867,6 +890,14 @@
               return;
             }
             count.textContent = String(bills.length);
+            if (!deletedInvoicePopupShown) {
+              deletedInvoicePopupShown = true;
+              const message = bills.length === 1
+                ? 'One invoice is in the Recently Deleted bin. You can review it or restore it from the deleted invoices page.'
+                : `${bills.length} invoices are in the Recently Deleted bin. You can review them or restore them from the deleted invoices page.`;
+              document.getElementById('deletedInvoicePopupMessage').textContent = message;
+              document.getElementById('deletedInvoicePopup').classList.replace('hidden', 'flex');
+            }
             list.innerHTML = bills.map(bill => {
               const invoiceNumber = escapeDashboardText(bill.invoiceNo || bill.id || 'Unknown invoice');
               const deletedBy = escapeDashboardText(bill.deletedBy || 'Staff');

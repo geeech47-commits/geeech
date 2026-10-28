@@ -1083,6 +1083,13 @@ async function executeKnotTagPrint() {
         }
     }
 
+    function navigateToInvoicePayment(index) {
+        const bill = currentSavedBills[index];
+        if (!bill?.id) return;
+        const query = new URLSearchParams({ bill: bill.id, editPayment: '1' });
+        window.location.href = `viewbills.html?${query.toString()}`;
+    }
+
    async function loadSavedBills() {
         try {
             const response = await fetch('/api/bills?summary=1&limit=8');
@@ -1133,6 +1140,7 @@ async function executeKnotTagPrint() {
                             </button>
                             <div id="dropdown-${i}" class="dropdown-menu">
                                 <button onclick="closeAllDropdowns();showInfo(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Details</button>
+                                <button onclick="closeAllDropdowns();navigateToInvoicePayment(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-indigo-600 hover:bg-indigo-50 border-b"><i class="fa-solid fa-money-bill-transfer mr-1.5"></i>Edit Payment Method</button>
                                 <button onclick="closeAllDropdowns();openEditModal(${i})" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-indigo-600 hover:bg-indigo-50 border-b">Edit / Pay</button>
                                 <button onclick="closeAllDropdowns();setSavedBillPaymentStatus(${i}, '${paymentStatus === 'paid' ? 'unpaid' : 'paid'}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase ${paymentStatus === 'paid' ? 'text-amber-700 hover:bg-amber-50' : 'text-emerald-700 hover:bg-emerald-50'} border-b">Mark ${paymentStatus === 'paid' ? 'Unpaid' : 'Paid'}</button>
                                 <button onclick="closeAllDropdowns();deleteBill('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50 border-b">Delete</button>

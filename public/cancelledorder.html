@@ -23,32 +23,8 @@
   <style>
     body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
     
-    .action-dropdown { position: relative; }
-    .dropdown-menu { 
-        display: none; 
-        position: absolute; 
-        right: 0; 
-        top: 100%; 
-        z-index: 1000; 
-        min-width: 140px; 
-        background: white;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e2e8f0;
-        border-radius: 0.75rem;
-    }
-    .dropdown-menu.show { display: block; }
-
-    @media (max-width: 1024px) {
-        #cancelledTable thead { display: none; }
-        #cancelledBillsList { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; padding: 1rem 0; }
-        #cancelledBillsList tr { display: block; background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1rem; margin-bottom: 0.5rem; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        #cancelledBillsList td { display: block; text-align: left !important; padding: 0.25rem 0; border: none; }
-        #cancelledBillsList td:first-child { font-size: 1.1rem; border-bottom: 1px solid #f1f5f9; margin-bottom: 0.5rem; padding-bottom: 0.5rem; }
-        #cancelledBillsList td:nth-child(6) { position: absolute; top: 1rem; right: 1rem; }
-        #cancelledBillsList td::before { content: attr(data-label); font-weight: 700; text-transform: uppercase; font-size: 0.65rem; color: #94a3b8; display: block; margin-bottom: 2px; }
-        #cancelledBillsList td:nth-child(6)::before { display: none; }
-        #cancelledBillsList td:last-child { margin-top: 0.75rem; padding: 0.75rem; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 0.75rem; }
-    }
+    .cancelled-card { transition: transform .18s ease, box-shadow .18s ease; }
+    .cancelled-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(15,23,42,.08); }
   </style>
 
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -96,65 +72,30 @@
     </div>
 </header>
   
-<main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-            <h2 class="text-l font-bold text-slate-800">Cancelled Orders</h2>
-            <p class="text-xs text-slate-400 font-medium">Review and inspect voided store transactions and cancellation metrics.</p>
-        </div>
-        <div class="flex items-center gap-3">
-            <div class="bg-rose-50 border border-rose-100 text-rose-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-                Total cancelled orders: <span id="cancelledCount">0</span>
+<main class="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8">
+    <div class="mx-auto max-w-7xl space-y-6">
+        <section class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-5 p-6 sm:flex-row sm:items-end sm:justify-between sm:p-8">
+                <div><span class="inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-violet-700"><i class="fa-solid fa-clipboard-list"></i> Order review</span><h2 class="mt-4 text-2xl font-black text-slate-900 sm:text-3xl">Cancelled orders</h2><p class="mt-2 max-w-xl text-sm text-slate-500">Review cancelled transactions and the reason recorded by your team.</p></div>
+                <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><span class="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-lg text-violet-700"><i class="fa-solid fa-file-circle-xmark"></i></span><div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total cancelled</p><p id="cancelledCount" class="text-2xl font-black text-slate-900">0</p></div></div>
             </div>
-        </div>
+        </section>
+        <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 class="text-sm font-extrabold text-slate-900">Cancellation log</h3><p class="mt-1 text-xs text-slate-500">Cancellation notes are shown on every order card.</p></div><div class="flex gap-2"><label class="relative min-w-0 flex-1 sm:w-96"><i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i><input id="searchFilter" type="search" oninput="filterTable()" placeholder="Search bill, customer, phone, or note…" class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-xs font-medium outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100"></label><button onclick="loadCancelledBills()" class="rounded-xl border border-slate-200 px-3 text-slate-600 hover:bg-slate-50" title="Refresh"><i class="fa-solid fa-rotate-right"></i></button></div></div>
+        </section>
+        <section id="cancelledBillsList" class="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-live="polite"><div class="col-span-full rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm font-medium text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading cancelled orders…</div></section>
     </div>
-
-        <div class="relative">
-            <input id="searchFilter" type="text" oninput="filterTable()" placeholder="Search by name, phone number, address or bill ID..." class="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium placeholder-slate-400">
-            <div class="absolute left-3.5 top-3.5 text-slate-400">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-            </div>
-        </div>
-    </div>
-
-    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 lg:p-6">
-        <div class="overflow-x-auto" style="min-height: 200px;">
-            <table id="cancelledTable" class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="text-slate-400 text-xs uppercase font-bold border-b">
-                        <th class="px-3 py-3">Bill No</th>
-                        <th class="px-3 py-3">Customer Name</th>
-                        <th class="px-3 py-3">Phone Number</th>
-                        <th class="px-3 py-3">Delivery Address</th>
-                        <th class="px-3 py-3 text-center">Total Cancellations</th>
-                        <th class="px-3 py-3 text-center">Actions</th>
-                        <th class="px-3 py-3">Cancellation Note</th>
-                    </tr>
-                </thead>
-                <tbody id="cancelledBillsList" class="text-xs divide-y divide-slate-50">
-                    <tr>
-                        <td colspan="7" class="text-center py-10 text-slate-400 font-bold uppercase tracking-wider text-xs">
-                            Loading cancelled orders....
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
 </main>
 </div>
 
-<div id="infoModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        <div class="bg-slate-800 px-6 py-4 flex justify-between items-center text-white">
+<div id="infoModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:p-4">
+    <div class="flex max-h-[90vh] max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div class="flex shrink-0 items-center justify-between bg-slate-800 px-4 py-3 text-white sm:px-6 sm:py-4">
             <h3 class="font-bold uppercase tracking-widest text-sm">Bill Details</h3>
             <button onclick="closeModal('infoModal')" class="hover:text-white/70 text-2xl">&times;</button>
         </div>
-        <div id="modalBody" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto"></div>
-        <div class="p-4 bg-slate-50 border-t flex justify-end">
+        <div id="modalBody" class="space-y-4 overflow-y-auto p-4 sm:p-6"></div>
+        <div class="flex shrink-0 justify-end border-t bg-slate-50 p-3 sm:p-4">
             <button onclick="closeModal('infoModal')" class="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg font-bold text-xs uppercase">Close</button>
         </div>
     </div>
@@ -164,26 +105,14 @@
     let cancelledBills = [];
     let cancellationCountMap = {}; 
 
-    function fmt(n) { return Number(n).toFixed(2); }
+    function fmt(n) { return (Number(n) || 0).toFixed(2); }
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character])); }
+    function isCancelledOrder(bill) { return [bill.orderStatus, bill.Status, bill.status].some(status => String(status || '').trim().toLowerCase() === 'cancelled'); }
+    function orderTotal(bill) { return Number(bill.saleTotal ?? Math.max(0, Number(bill.subtotal || 0) - Number(bill.discount || 0))) || 0; }
 
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('-translate-x-full');
         document.getElementById('sidebarOverlay').classList.toggle('hidden');
-    }
-
-    function toggleDropdown(event, index) {
-        event.stopPropagation();
-        document.querySelectorAll('.dropdown-menu').forEach(menu => {
-            if(menu.id !== `dropdown-${index}`) menu.classList.remove('show');
-        });
-        const dropdown = document.getElementById(`dropdown-${index}`);
-        dropdown.classList.toggle('show');
-    }
-
-    window.onclick = function(event) {
-        if (!event.target.closest('.action-dropdown')) {
-            document.querySelectorAll('.dropdown-menu').forEach(menu => menu.classList.remove('show'));
-        }
     }
 
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -194,8 +123,9 @@
             if (!response.ok) throw new Error("Error fetching data stream");
             
             const allBills = await response.json();
-            
-            cancelledBills = allBills.filter(b => b.orderStatus === 'cancelled');
+            if (!Array.isArray(allBills)) throw new Error(allBills?.error || 'The bills response was not a list.');
+            cancelledBills = allBills.filter(isCancelledOrder);
+            cancelledBills.sort((a, b) => new Date(b.updatedAt || b.date || 0) - new Date(a.updatedAt || a.date || 0));
             
             cancellationCountMap = {};
             cancelledBills.forEach(b => {
@@ -209,66 +139,36 @@
 
         } catch (err) {
             console.error(err);
-            document.getElementById('cancelledBillsList').innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-10 text-rose-500 font-bold uppercase text-xs">
-                        Failed to connect to backend api server stream.
-                    </td>
-                </tr>`;
+            document.getElementById('cancelledBillsList').innerHTML = `<div class="col-span-full rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm font-semibold text-rose-700"><i class="fa-solid fa-triangle-exclamation mr-2"></i>${escapeHtml(err.message || 'Could not load cancelled orders. Check the connection and refresh.')}</div>`;
         }
     }
 
     function renderTableRows(dataArray) {
         const cont = document.getElementById('cancelledBillsList');
-        
         if (dataArray.length === 0) {
-            cont.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center py-10 text-slate-400 font-bold uppercase text-xs">
-                        No transactions found matching requirements.
-                    </td>
-                </tr>`;
+            cont.innerHTML = `<div class="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-14 text-center"><span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><i class="fa-regular fa-folder-open text-lg"></i></span><p class="mt-4 text-sm font-bold text-slate-700">No cancelled orders found</p><p class="mt-1 text-xs text-slate-400">Try another search or refresh the cancellation log.</p></div>`;
             return;
         }
 
         cont.innerHTML = dataArray.map((b, i) => {
             const phoneKey = b.phone ? b.phone.trim() : "WALK-IN";
             const customerTotalCancellations = cancellationCountMap[phoneKey] || 1;
-
+            const billId = escapeHtml(b.id || b.invoiceNo || 'Unknown');
+            const customer = escapeHtml(b.customer || 'Walk-in customer');
+            const phone = escapeHtml(b.phone || 'No phone number');
+            const address = escapeHtml(b.address || 'No delivery address');
+            const note = escapeHtml(b.cancellationNote || 'No cancellation note was recorded.');
+            const amount = orderTotal(b);
+            const date = new Date(b.updatedAt || b.date || b.createdAt || 0);
+            const dateLabel = Number.isNaN(date.getTime()) || !date.getTime() ? 'Date unavailable' : date.toLocaleString('en-IN', {day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'});
             return `
-            <tr class="hover:bg-slate-50 border-b">
-                <td data-label="Bill ID" class="px-3 py-3 font-mono text-[11px] font-bold text-indigo-600">${b.id}</td>
-                <td data-label="Customer Name" class="px-3 py-3 text-[11px] font-bold uppercase text-slate-800">
-                    ${b.customer}
-                    <span class="text-[9px] font-black bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded ml-1 tracking-wide">CANCELLED</span>
-                </td>
-                <td data-label="Phone Number" class="px-3 py-3 text-[11px] font-semibold text-slate-700">${b.phone || 'N/A'}</td>
-                <td data-label="Delivery Address" class="max-w-[160px] truncate px-3 py-3 text-[10px] font-medium uppercase text-slate-600" title="${b.address || ''}">
-                    ${b.address || 'N/A'}
-                </td>
-                <td data-label="Total Cancelled" class="px-3 py-3 text-center">
-                    <span class="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
-                        ${customerTotalCancellations}
-                    </span>
-                </td>
-                <td class="px-3 py-3 text-center">
-                    <div class="action-dropdown">
-                        <button onclick="toggleDropdown(event, ${i})" class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-200">
-                            Action
-                        </button>
-                        <div id="dropdown-${i}" class="dropdown-menu">
-                            <button onclick="showInfo('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 border-b">Details</button>
-                            <button onclick="deleteBill('${b.id}')" class="w-full text-left px-4 py-2.5 text-[10px] font-bold uppercase text-rose-600 hover:bg-rose-50">Move to Recently Deleted</button>
-                        </div>
-                    </div>
-                </td>
-                <td data-label="Cancellation Note" class="px-3 py-3 text-xs align-top">
-                    <div class="min-w-[170px] max-w-[220px] rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-2">
-                        <p class="text-[9px] font-bold uppercase tracking-wider text-rose-500">Reason</p>
-                        <p class="mt-1 break-words text-[11px] font-semibold leading-relaxed text-rose-800">${b.cancellationNote ? b.cancellationNote.toUpperCase() : 'NO NOTE PROVIDED'}</p>
-                    </div>
-                </td>
-            </tr>`;
+            <article class="cancelled-card overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="flex items-start justify-between gap-3 border-b border-slate-100 p-4 sm:p-5"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-sm font-extrabold text-slate-900">#${billId}</span><span class="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-rose-700"><i class="fa-solid fa-ban mr-1"></i>Cancelled</span></div><p class="mt-1.5 text-[11px] text-slate-400">${escapeHtml(dateLabel)}</p></div><span class="shrink-0 rounded-xl bg-slate-100 px-3 py-2 text-center"><span class="block text-lg font-black leading-none text-slate-800">${customerTotalCancellations}</span><span class="mt-1 block text-[8px] font-bold uppercase tracking-wide text-slate-500">customer<br>cancellations</span></span></div>
+                <div class="space-y-4 p-4 sm:p-5"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-sm font-extrabold text-slate-900">${customer}</h3><p class="mt-1 text-xs font-medium text-slate-500"><i class="fa-solid fa-phone mr-1.5 text-slate-400"></i>${phone}</p></div><p class="text-base font-black text-slate-900">Rs. ${fmt(amount)}</p></div><p class="text-xs leading-relaxed text-slate-600"><i class="fa-solid fa-location-dot mr-1.5 text-slate-400"></i>${address}</p>
+                    <div class="rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5"><div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-[.12em] text-amber-700"><i class="fa-solid fa-note-sticky"></i> Cancellation note</div><p class="mt-1.5 whitespace-pre-wrap break-words text-xs font-semibold leading-relaxed text-slate-700">${note}</p></div>
+                    <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3"><button data-action="details" data-id="${billId}" class="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-eye mr-1"></i>Details</button><button data-action="delete" data-id="${billId}" class="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"><i class="fa-solid fa-box-archive mr-1"></i>Move to recently deleted</button></div>
+                </div>
+            </article>`;
         }).join('');
     }
 
@@ -280,18 +180,14 @@
         }
 
         const filtered = cancelledBills.filter(b => {
-            return (b.id && b.id.toLowerCase().includes(query)) ||
-                   (b.customer && b.customer.toLowerCase().includes(query)) ||
-                   (b.phone && b.phone.toLowerCase().includes(query)) ||
-                   (b.address && b.address.toLowerCase().includes(query)) ||
-                   (b.cancellationNote && b.cancellationNote.toLowerCase().includes(query));
+            return [b.id, b.invoiceNo, b.customer, b.phone, b.address, b.cancellationNote].some(value => String(value || '').toLowerCase().includes(query));
         });
 
         renderTableRows(filtered);
     }
 
     function showInfo(billId) {
-        const b = cancelledBills.find(x => x.id === billId);
+        const b = cancelledBills.find(x => String(x.id || x.invoiceNo) === String(billId));
         if(!b) return;
         
         const body = document.getElementById('modalBody');
@@ -300,26 +196,26 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Customer</p>
-                        <p class="text-sm font-bold uppercase text-slate-900">${b.customer}</p>
+                        <p class="text-sm font-bold uppercase text-slate-900">${escapeHtml(b.customer || 'Walk-in customer')}</p>
                     </div>
                     <div>
                         <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Phone</p>
-                        <p class="text-sm font-semibold text-slate-700">${b.phone || 'N/A'}</p>
+                        <p class="text-sm font-semibold text-slate-700">${escapeHtml(b.phone || 'N/A')}</p>
                     </div>
                     <div class="col-span-2">
                         <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Address</p>
-                        <p class="text-sm font-semibold text-slate-700">${b.address || 'N/A'}</p>
+                        <p class="text-sm font-semibold text-slate-700">${escapeHtml(b.address || 'N/A')}</p>
                     </div>
-                    <div class="col-span-2 bg-rose-50 border border-rose-200 rounded-xl p-3">
-                        <p class="text-[10px] text-rose-500 font-black uppercase mb-0.5">Cancellation Reason Note</p>
-                        <p class="text-xs text-rose-900 font-bold uppercase leading-relaxed">${b.cancellationNote || 'NO NOTE ATTACHED'}</p>
+                    <div class="col-span-2 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3">
+                        <p class="mb-0.5 text-[10px] font-black uppercase text-amber-700">Cancellation Reason Note</p>
+                        <p class="whitespace-pre-wrap break-words text-xs font-bold leading-relaxed text-slate-700">${escapeHtml(b.cancellationNote || 'No note attached')}</p>
                     </div>
                 </div>
                 <div class="bg-indigo-50/50 p-4 rounded-xl space-y-2 border border-indigo-100">
                     <p class="text-[10px] text-indigo-400 font-black uppercase mb-2">Voided Itemized List</p>
-                    ${b.items.map(it => `
+                    ${(b.items || []).map(it => `
                         <div class="flex justify-between text-xs uppercase tracking-tight text-slate-600">
-                            <span>${it.name} <span class="text-[10px]">x${it.quantity}</span></span>
+                            <span>${escapeHtml(it.name)} <span class="text-[10px]">x${escapeHtml(it.quantity)}</span></span>
                             <b>₹${fmt(it.price * it.quantity)}</b>
                         </div>
                     `).join('')}
@@ -373,6 +269,13 @@
             showInvoiceNotice('Could not move invoice', err.message || 'Please try again.', 'warning');
         }
     }
+
+    document.getElementById('cancelledBillsList').addEventListener('click', event => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        if (button.dataset.action === 'details') showInfo(button.dataset.id);
+        if (button.dataset.action === 'delete') deleteBill(button.dataset.id);
+    });
 
     window.onload = () => {
         loadCancelledBills();

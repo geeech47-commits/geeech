@@ -539,6 +539,36 @@ app.patch('/api/bills/:id/payment', async (req, res) => {
     }
 });
 
+app.patch('/api/bills/:id/payment-mode', async (req, res) => {
+    try {
+        let paymentMode = String(req.body.paymentMode || '').toLowerCase();
+        if (paymentMode === 'online') paymentMode = 'upi';
+        if (!['cash', 'upi', 'debitcard'].includes(paymentMode)) {
+            return res.status(400).json({ error: 'Choose cash, UPI, or debit card.' });
+        }
+
+        const bill = await Bill.findOne({ id: req.params.id, isDeleted: { $ne: true } });
+        if (!bill) return res.status(404).json({ error: 'Bill not found.' });
+
+        const received = Math.max(0, Number(bill.advance) || 0);
+        const previousMode = String(bill.paymentMode || '').toLowerCase();
+        bill.paymentMode = paymentMode;
+        bill.paymentBreakdown = received > 0 ? [{ mode: paymentMode, amount: received }] : [];
+        await bill.save();
+
+        await new History({
+            bill_id: bill.id,
+            edit_date: new Date().toLocaleString(),
+            change_log: `Payment mode changed from ${(previousMode || 'unrecorded').toUpperCase()} to ${paymentMode.toUpperCase()}`
+        }).save();
+
+        res.json({ success: true, paymentMode, paymentBreakdown: bill.paymentBreakdown });
+    } catch (err) {
+        console.error('Failed to update bill payment mode:', err);
+        res.status(500).json({ error: 'Failed to update payment mode.' });
+    }
+});
+
 // Example Express Backend Route for Updating Order Status
 app.patch('/api/bills/:id/status', async (req, res) => {
     try {

@@ -325,6 +325,9 @@
                     <button id="btn-ALL" onclick="setFilter('ALL')" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-violet-600 text-white transition-all shadow-sm">All</button>
                     <button id="btn-ONLINE" onclick="setFilter('ONLINE')" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white border border-slate-200 text-slate-600 transition-all shadow-sm">Online</button>
                     <button id="btn-OFFLINE" onclick="setFilter('OFFLINE')" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white border border-slate-200 text-slate-600 transition-all shadow-sm">Offline</button>
+                    <span class="mx-1 hidden h-8 border-l border-slate-200 sm:block"></span>
+                    <button onclick="openBookedOrders('today')" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold uppercase text-emerald-700 transition-all hover:bg-emerald-100">Today's booked orders</button>
+                    <button onclick="openBookedOrders('future')" class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-bold uppercase text-blue-700 transition-all hover:bg-blue-100">Future bookings</button>
                 </div>
 
                 <div id="onlineSubFilters" class="hidden flex gap-2">
@@ -334,9 +337,12 @@
             </div>
 
             <div class="flex justify-end">
+                <div class="flex flex-wrap justify-end gap-3">
+                <button onclick="openTablesModal()" class="inline-flex items-center gap-3 rounded-xl border border-emerald-200 bg-white px-5 py-3.5 text-sm font-extrabold text-emerald-800 shadow-md shadow-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-50"><span class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700"><i class="fa-solid fa-table-cells-large"></i></span> Tables <i class="fa-solid fa-arrow-right text-xs"></i></button>
                 <button onclick="openDayClosing()" class="inline-flex items-center gap-3 rounded-xl border border-violet-200 bg-white px-6 py-3.5 text-sm font-extrabold text-violet-800 shadow-md shadow-violet-100 transition hover:-translate-y-0.5 hover:border-violet-400 hover:bg-violet-50 hover:shadow-lg">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700"><i class="fa-solid fa-cash-register"></i></span> Day Closing Summary <i class="fa-solid fa-arrow-right text-xs text-violet-500"></i>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700"><i class="fa-solid fa-cash-register"></i></span> Daily Sales Report <i class="fa-solid fa-arrow-right text-xs text-violet-500"></i>
                 </button>
+                </div>
             </div>
             <div id="salesReportContainer" class="grid grid-cols-1 sm:grid-cols-4 gap-6">
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -501,13 +507,40 @@
     </div>
 
     <div id="dayClosingModal" class="fixed inset-0 z-[400] hidden items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="dayClosingTitle">
-        <div class="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-                <div><h2 id="dayClosingTitle" class="text-lg font-bold text-slate-900">Day Closing Summary</h2><p id="dayClosingDate" class="mt-1 text-xs text-slate-500"></p></div>
+        <div class="flex max-h-[90vh] max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+                <div><h2 id="dayClosingTitle" class="text-lg font-bold text-slate-900">Daily Sales Report</h2><p id="dayClosingDate" class="mt-1 text-xs text-slate-500"></p></div>
                 <button onclick="closeDayClosing()" class="rounded-lg px-3 py-1 text-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close">&times;</button>
             </div>
-            <div id="dayClosingSummary" class="grid grid-cols-1 gap-3 bg-slate-50 p-5 sm:grid-cols-2"></div>
-            <div class="flex items-center justify-between border-t border-slate-100 bg-white px-5 py-4"><p class="text-[10px] font-medium text-slate-400">Totals for today’s bills</p><button onclick="closeDayClosing()" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Close</button></div>
+            <div id="dayClosingSummary" class="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-4 sm:p-5"></div>
+            <div class="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-4 sm:px-5"><p class="text-[10px] font-medium text-slate-400">Totals for today’s bills</p><button onclick="closeDayClosing()" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Close</button></div>
+        </div>
+    </div>
+
+    <div id="bookedOrdersModal" class="fixed inset-0 z-[430] hidden items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="bookedOrdersTitle">
+        <div class="flex max-h-[90vh] max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 sm:px-6"><div><h2 id="bookedOrdersTitle" class="text-lg font-bold text-slate-900">Booked orders</h2><p id="bookedOrdersDate" class="mt-1 text-xs text-slate-500"></p></div><button onclick="closeBookedOrders()" class="rounded-lg px-3 py-1 text-2xl text-slate-400 hover:bg-slate-100" aria-label="Close">&times;</button></div>
+            <div id="bookedOrdersContent" class="min-h-0 flex-1 overflow-auto bg-slate-50 p-4 sm:p-6"><p class="py-8 text-center text-sm text-slate-500">Loading scheduled orders…</p></div>
+            <div class="flex shrink-0 justify-end border-t border-slate-100 bg-white px-5 py-3"><button onclick="closeBookedOrders()" class="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Close</button></div>
+        </div>
+    </div>
+
+    <div id="tablesModal" class="fixed inset-0 z-[410] hidden items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="tablesTitle">
+        <div class="flex max-h-[90vh] max-h-[90dvh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7"><div><h2 id="tablesTitle" class="text-lg font-extrabold text-slate-900">Table booking</h2><p class="mt-1 text-xs text-slate-500">Tap any table to see its options.</p></div><div class="flex w-full items-center gap-2 sm:w-auto"><button onclick="addRestaurantTable()" class="flex-1 rounded-xl bg-emerald-600 px-3 py-2.5 text-[11px] font-bold text-white hover:bg-emerald-700 sm:flex-none sm:text-xs"><i class="fa-solid fa-plus mr-1"></i>Add table</button><button onclick="removeRestaurantTable()" class="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[11px] font-bold text-rose-700 hover:bg-rose-100 sm:flex-none sm:text-xs"><i class="fa-solid fa-minus mr-1"></i>Remove table</button><button onclick="closeTablesModal()" class="rounded-xl px-2 py-1 text-2xl text-slate-400 hover:bg-slate-100" aria-label="Close">&times;</button></div></div>
+            <div id="tableCards" class="min-h-0 flex-1 grid grid-cols-3 gap-2 overflow-y-auto bg-slate-50 p-3 sm:gap-4 sm:p-7"></div>
+        </div>
+    </div>
+    <div id="tableActionModal" class="fixed inset-0 z-[420] hidden items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+        <div class="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl bg-white p-4 shadow-2xl sm:p-6"><div class="mb-5 flex items-start justify-between"><div><p class="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Table options</p><h3 id="tableActionTitle" class="mt-1 text-xl font-extrabold text-slate-900">Table 1</h3><p class="mt-1 text-xs text-slate-500">Feature available soon</p></div><button onclick="closeTableActions()" class="rounded-lg px-2 text-2xl text-slate-400">&times;</button></div><div class="space-y-2"><button onclick="tableFeatureSoon()" class="w-full rounded-xl bg-violet-600 px-4 py-3 text-left text-sm font-bold text-white hover:bg-violet-700"><i class="fa-solid fa-utensils mr-2"></i>Book order</button><button onclick="tableFeatureSoon()" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-bold text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-print mr-2 text-blue-600"></i>Print bill</button><button onclick="tableFeatureSoon()" class="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-bold text-amber-800 hover:bg-amber-100"><i class="fa-solid fa-calendar-check mr-2"></i>Reserve table</button></div></div>
+    </div>
+    <div id="featureSoonModal" class="fixed inset-0 z-[500] hidden items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="featureSoonTitle" onclick="if(event.target===this)closeFeatureSoon()">
+        <div class="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white px-6 py-9 text-center shadow-2xl sm:px-10 sm:py-12">
+            <button onclick="closeFeatureSoon()" class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="Close">&times;</button>
+            <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-rose-100 bg-rose-50 text-rose-600 shadow-sm sm:h-24 sm:w-24"><i class="fa-solid fa-xmark text-4xl sm:text-5xl"></i></div>
+            <h2 id="featureSoonTitle" class="mt-6 text-xl font-black text-slate-900 sm:text-2xl">Feature will be available soon</h2>
+            <p class="mt-2 text-sm text-slate-500">This table feature is coming soon.</p>
+            <button onclick="closeFeatureSoon()" class="mt-7 w-full rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700 sm:w-auto sm:min-w-36">Got it</button>
         </div>
     </div>
 
@@ -613,6 +646,24 @@
         let currentGlobalBills = [];
         let assignedRiderOrders = [];
         let toastTimeout = null;
+        const tableStoreKey = 'geeech-table-count-v1';
+        let tableCount = Math.max(1, Number(localStorage.getItem(tableStoreKey)) || 12);
+        let activeTableNumber = null;
+
+        function saveTableCount() { localStorage.setItem(tableStoreKey, String(tableCount)); renderTableCards(); }
+        function openTablesModal() { renderTableCards(); document.getElementById('tablesModal').classList.replace('hidden', 'flex'); }
+        function closeTablesModal() { document.getElementById('tablesModal').classList.replace('flex', 'hidden'); closeTableActions(); }
+        function addRestaurantTable() { tableCount += 1; saveTableCount(); }
+        function removeRestaurantTable() { if (tableCount <= 1) return; tableCount -= 1; saveTableCount(); }
+        function renderTableCards() {
+            const container = document.getElementById('tableCards');
+            container.innerHTML = Array.from({length: tableCount}, (_, i) => i + 1).map(number => `<button onclick="openTableActions(${number})" class="group min-h-24 rounded-2xl border border-emerald-100 bg-white p-2 text-center text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md sm:min-h-32 sm:p-4"><span class="mx-auto flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 sm:h-10 sm:w-10"><i class="fa-solid fa-chair"></i></span><p class="mt-2 text-xs font-extrabold sm:mt-4 sm:text-base">Table ${number}</p><p class="mt-1 text-[8px] font-bold uppercase tracking-wide text-emerald-700 sm:text-[10px]">Available</p></button>`).join('');
+        }
+        function openTableActions(number) { activeTableNumber = number; document.getElementById('tableActionTitle').textContent = `Table ${activeTableNumber}`; document.getElementById('tableActionModal').classList.replace('hidden','flex'); }
+        function closeTableActions() { document.getElementById('tableActionModal').classList.replace('flex','hidden'); }
+        function tableFeatureSoon() { document.getElementById('featureSoonModal').classList.replace('hidden', 'flex'); }
+        function closeFeatureSoon() { document.getElementById('featureSoonModal').classList.replace('flex', 'hidden'); }
+        document.addEventListener('keydown', event => { if (event.key === 'Escape' && !document.getElementById('featureSoonModal').classList.contains('hidden')) closeFeatureSoon(); });
 
         function openDayClosing() {
             const now = new Date();
@@ -621,7 +672,7 @@
                 const cancelled = String(bill.orderStatus || bill.Status || '').trim().toLowerCase() === 'cancelled';
                 return !cancelled && !Number.isNaN(date.getTime()) && date.toDateString() === now.toDateString();
             });
-            const totals = { billed: 0, received: 0, cash: 0, upi: 0, card: 0, unpaid: 0 };
+            const totals = { billed: 0, received: 0, cash: 0, upi: 0, card: 0, other: 0, unpaid: 0 };
             todayBills.forEach(bill => {
                 const saleTotal = Number(bill.saleTotal ?? Math.max(0, Number(bill.subtotal || 0) - Number(bill.discount || 0))) || 0;
                 const advance = Math.max(0, Number(bill.advance) || 0);
@@ -640,29 +691,43 @@
                         if (mode === 'cash') totals.cash += amount;
                         else if (mode === 'upi' || mode === 'online') totals.upi += amount;
                         else if (mode === 'debitcard' || mode === 'card') totals.card += amount;
+                        else totals.other += amount;
                     });
                 } else {
                     const mode = String(bill.paymentMode || bill.payMethod || (bill.orderSource === 'ONLINE' ? 'upi' : '')).toLowerCase();
                     if (mode === 'cash') totals.cash += received;
                     else if (mode === 'upi' || mode === 'online') totals.upi += received;
                     else if (mode === 'debitcard' || mode === 'card') totals.card += received;
+                    else if (received > 0) totals.other += received;
                 }
             });
-            const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value);
-            const cards = [
-                ['Total payment received', money(totals.received), 'fa-circle-check', 'text-emerald-700', 'bg-emerald-50'],
-                ['Total billed', money(totals.billed), 'fa-file-invoice', 'text-slate-700', 'bg-slate-100'],
-                ['Today’s orders', String(todayBills.length), 'fa-receipt', 'text-violet-700', 'bg-violet-50'],
-                ['Cash received', money(totals.cash), 'fa-money-bill-wave', 'text-green-700', 'bg-green-50'],
-                ['UPI received', money(totals.upi), 'fa-mobile-screen-button', 'text-blue-700', 'bg-blue-50'],
-                ['Card received', money(totals.card), 'fa-credit-card', 'text-indigo-700', 'bg-indigo-50'],
-                ['Unpaid balance', money(totals.unpaid), 'fa-clock', 'text-amber-700', 'bg-amber-50']
+            const money = value => `Rs. ${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(value)}`;
+            const rows = [
+                ['Total payment received', 'All payments', money(totals.received), 'total'],
+                ['Total billed', 'Sales', money(totals.billed), 'neutral'],
+                ['Today’s orders', 'Orders', String(todayBills.length), 'neutral'],
+                ['Cash received', 'Cash', money(totals.cash), 'cash'],
+                ['UPI received', 'UPI', money(totals.upi), 'upi'],
+                ['Card received', 'Card', money(totals.card), 'other'],
+                ['Other received', 'Other', money(totals.other), 'other'],
+                ['Unpaid balance', 'Pending', money(totals.unpaid), 'pending']
             ];
             document.getElementById('dayClosingDate').textContent = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-            document.getElementById('dayClosingSummary').innerHTML = cards.map(([label, value, icon, color, bg]) => `<div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div><p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">${label}</p><p class="mt-1 text-lg font-bold text-slate-900">${value}</p></div><span class="flex h-10 w-10 items-center justify-center rounded-lg ${bg} ${color}"><i class="fa-solid ${icon}"></i></span></div>`).join('');
+            const badge = {cash:'border-emerald-200 bg-emerald-50 text-emerald-700',upi:'border-blue-200 bg-blue-50 text-blue-700',other:'border-rose-200 bg-rose-50 text-rose-700',pending:'border-amber-200 bg-amber-50 text-amber-800',neutral:'border-slate-200 bg-slate-100 text-slate-600',total:'border-emerald-200 bg-emerald-100 text-emerald-800'};
+            const amountColor = {cash:'text-emerald-700',upi:'text-blue-700',other:'text-rose-700',pending:'text-amber-800',neutral:'text-slate-800',total:'text-emerald-900'};
+            document.getElementById('dayClosingSummary').innerHTML = `<div class="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm sm:block"><table class="w-full text-left text-xs"><thead class="bg-slate-100 text-[10px] uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Daily sales</th><th class="px-4 py-3">Payment type</th><th class="px-4 py-3 text-right">Amount</th></tr></thead><tbody class="divide-y divide-slate-100">${rows.map(([label, type, value, tone]) => { const totalReceived = tone === 'total'; return `<tr class="${totalReceived ? 'bg-emerald-50/60' : 'hover:bg-slate-50'}"><td class="px-4 py-3 ${totalReceived ? 'font-black text-emerald-900' : 'font-semibold text-slate-700'}">${label}</td><td class="px-4 py-3"><span class="inline-flex rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase ${badge[tone]}">${type}</span></td><td class="px-4 py-3 text-right text-sm ${totalReceived ? 'font-black' : 'font-bold'} ${amountColor[tone]}">${value}</td></tr>`; }).join('')}</tbody></table></div><div class="space-y-2 sm:hidden">${rows.map(([label, type, value, tone]) => { const totalReceived = tone === 'total'; return `<article class="rounded-xl border ${totalReceived ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-white'} p-3"><div class="flex items-start justify-between gap-2"><div class="min-w-0"><p class="text-[11px] ${totalReceived ? 'font-black text-emerald-900' : 'font-semibold text-slate-700'}">${label}</p><span class="mt-1 inline-flex rounded-full border px-2 py-0.5 text-[8px] font-extrabold uppercase ${badge[tone]}">${type}</span></div><p class="shrink-0 text-right text-sm ${totalReceived ? 'font-black' : 'font-bold'} ${amountColor[tone]}">${value}</p></div></article>`; }).join('')}</div>`;
             document.getElementById('dayClosingModal').classList.replace('hidden', 'flex');
         }
-        function closeDayClosing() { document.getElementById('dayClosingModal').classList.replace('flex', 'hidden'); }
+        function closeDayClosing() {
+            const modal = document.getElementById('dayClosingModal');
+            modal.classList.replace('flex', 'hidden');
+        }
+        document.getElementById('dayClosingModal').addEventListener('click', event => {
+            if (event.target.id === 'dayClosingModal') closeDayClosing();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !document.getElementById('dayClosingModal').classList.contains('hidden')) closeDayClosing();
+        });
 
         let calculatedSales = { thisMonth: 0, lastMonth: 0, overall: 0 };
 
@@ -784,6 +849,62 @@
             fetchAndRenderData();
         }
 
+        function getBookingDateKey(order) {
+            const value = order.deliveryDate || order.bookingDate || order.scheduledDate || order.reservationDate;
+            if (!value) return '';
+            const date = String(value).slice(0, 10);
+            return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '';
+        }
+
+        async function openBookedOrders(period) {
+            const modal = document.getElementById('bookedOrdersModal');
+            const title = period === 'today' ? "Today's booked orders" : 'Future bookings';
+            document.getElementById('bookedOrdersTitle').textContent = title;
+            document.getElementById('bookedOrdersDate').textContent = period === 'today' ? 'Orders scheduled for today' : 'Orders scheduled from tomorrow onward';
+            document.getElementById('bookedOrdersContent').innerHTML = '<p class="py-8 text-center text-sm text-slate-500">Loading scheduled orders…</p>';
+            modal.classList.replace('hidden', 'flex');
+            try {
+                const response = await fetch('/api/bills?summary=1');
+                if (!response.ok) throw new Error('Could not load booked orders.');
+                const orders = await response.json();
+                if (!Array.isArray(orders)) throw new Error('The orders response was not valid.');
+                currentGlobalBills = orders;
+                const now = new Date();
+                const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+                const tomorrowKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+                const booked = orders.filter(order => {
+                    const date = getBookingDateKey(order);
+                    return period === 'today' ? date === todayKey : date >= tomorrowKey;
+                }).sort((a, b) => getBookingDateKey(a).localeCompare(getBookingDateKey(b)));
+                if (!booked.length) {
+                    document.getElementById('bookedOrdersContent').innerHTML = `<div class="rounded-2xl border border-slate-200 bg-white px-4 py-12 text-center"><i class="fa-regular fa-calendar-xmark text-2xl text-slate-300"></i><p class="mt-3 text-sm font-semibold text-slate-600">No ${period === 'today' ? 'orders scheduled for today' : 'future bookings'} found.</p></div>`;
+                    return;
+                }
+                document.getElementById('bookedOrdersContent').innerHTML = renderBookedOrders(booked);
+            } catch (error) {
+                document.getElementById('bookedOrdersContent').innerHTML = `<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">${escapeDashboardText(error.message || 'Could not load booked orders.')}</div>`;
+            }
+        }
+
+        function renderBookedOrders(orders) {
+            const money = value => `Rs. ${Number(value || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+            const formatDate = key => { const [year, month, day] = key.split('-').map(Number); return new Date(year, month - 1, day).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}); };
+            const rows = orders.map(order => {
+                const orderId = escapeDashboardText(order.invoiceNo || order.id || '—');
+                const customer = escapeDashboardText(order.customer || order.customerName || 'Walk-in');
+                const status = escapeDashboardText(order.Status || order.status || order.orderStatus || 'Booked');
+                const date = `${formatDate(getBookingDateKey(order))}${order.deliveryTime ? ` · ${escapeDashboardText(order.deliveryTime)}` : ''}`;
+                const amount = Number(order.saleTotal ?? Math.max(0, Number(order.subtotal || 0) - Number(order.discount || 0))) || 0;
+                return {orderId, customer, status, date, amount};
+            });
+            const table = `<div class="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm sm:block"><table class="w-full text-left text-xs"><thead class="bg-slate-100 text-[10px] uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Order</th><th class="px-4 py-3">Customer</th><th class="px-4 py-3">Scheduled date</th><th class="px-4 py-3">Status</th><th class="px-4 py-3 text-right">Amount</th></tr></thead><tbody class="divide-y divide-slate-100">${rows.map(row => `<tr class="hover:bg-slate-50"><td class="px-4 py-3 font-mono font-bold text-slate-800">#${row.orderId}</td><td class="px-4 py-3 font-semibold text-slate-700">${row.customer}</td><td class="px-4 py-3 font-semibold text-slate-600">${row.date}</td><td class="px-4 py-3"><span class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase text-blue-700">${row.status}</span></td><td class="px-4 py-3 text-right text-sm font-bold text-slate-800">${money(row.amount)}</td></tr>`).join('')}</tbody></table></div>`;
+            const cards = `<div class="space-y-3 sm:hidden">${rows.map(row => `<article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="break-all font-mono text-xs font-extrabold text-slate-900">#${row.orderId}</p><p class="mt-1 truncate text-sm font-bold text-slate-800">${row.customer}</p></div><p class="shrink-0 text-right text-sm font-extrabold text-slate-900">${money(row.amount)}</p></div><div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3"><span class="text-[11px] font-semibold text-slate-600"><i class="fa-regular fa-calendar mr-1 text-slate-400"></i>${row.date}</span><span class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase text-blue-700">${row.status}</span></div></article>`).join('')}</div>`;
+            return table + cards;
+        }
+
+        function closeBookedOrders() { document.getElementById('bookedOrdersModal').classList.replace('flex', 'hidden'); }
+
         function setSubFilter(sub) {
             currentSubFilter = sub;
             document.querySelectorAll('.sub-btn').forEach(btn => {
@@ -841,7 +962,7 @@
                     const invNumber = lastBill.invoiceNo || lastBill.id || `#INV-${Math.floor(1000 + Math.random() * 9000)}`;
                     const custName = lastBill.customer || lastBill.customerName || "Walk-in Customer";
                     const paymentStatus = lastBill.paymentStatus || (Number(lastBill.total || 0) <= 0.005 ? 'paid' : 'unpaid');
-                    const paymentParts = Array.isArray(lastBill.paymentBreakdown) && lastBill.paymentBreakdown.length ? lastBill.paymentBreakdown.map(p => `${({cash:'CASH',online:'UPI',upi:'UPI',debitcard:'DEBIT CARD'})[String(p.mode||'').toLowerCase()]||String(p.mode||'').toUpperCase()} ₹${Number(p.amount || 0).toFixed(2)}`).join(' + ') : (({cash:'Cash',online:'UPI',upi:'UPI',debitcard:'Debit Card',split:'Split Payment'})[String(lastBill.paymentMode||lastBill.payMethod||'').toLowerCase()] || lastBill.orderSource || 'Not recorded');
+                    const paymentParts = Array.isArray(lastBill.paymentBreakdown) && lastBill.paymentBreakdown.length ? lastBill.paymentBreakdown.map(p => `${({cash:'CASH',online:'UPI',upi:'UPI',debitcard:'DEBIT CARD'})[String(p.mode||'').toLowerCase()]||String(p.mode||'').toUpperCase()} Rs. ${Number(p.amount || 0).toFixed(2)}`).join(' · ') : (({cash:'Cash',online:'UPI',upi:'UPI',debitcard:'Debit Card',split:'Split Payment'})[String(lastBill.paymentMode||lastBill.payMethod||'').toLowerCase()] || lastBill.orderSource || 'Not recorded');
                     const paymentType = `${paymentStatus.toUpperCase()} · ${paymentParts}`;
                     const totalAmt = Number(lastBill.saleTotal ?? Math.max(0, Number(lastBill.subtotal || 0) - Number(lastBill.discount || 0))) || 0;
 
@@ -1573,7 +1694,7 @@
             setTimeout(() => toast.remove(), 4000);
         }
 
-        async function posSaveBill() { if (!posItems.length) return alert('Add items first'); const bill = posBillObject(); try { const response = await fetch('/api/bills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bill) }); if (!response.ok) throw new Error(); await posClearBill(); fetchAndRenderData(); posShowSuccess(bill.id); } catch (error) { alert('Could not save the bill.'); } }
+        async function posSaveBill() { if (!posItems.length) return alert('Add items first'); const bill = posBillObject(); try { const response = await fetch('/api/bills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bill) }); if (!response.ok) throw new Error(); await posClearBill(); toggleBillModal(); fetchAndRenderData(); posShowSuccess(bill.id); } catch (error) { alert('Could not save the bill.'); } }
         async function posClearBill() { posItems=[]; document.getElementById('posCustomerName').value=''; document.getElementById('posCustomerPhone').value=''; document.getElementById('posDiscount').value=0; document.getElementById('posAdvance').value=0; document.getElementById('posPaymentMode').value='cash'; document.getElementById('posCashPayment').value=0; document.getElementById('posOnlinePayment').value=0; document.getElementById('posDebitCardPayment').value=0; posUpdatePaymentMode(); posRenderItems(); await posFetchBillNumber(); }
         function posPrintThermal() { if (!posItems.length) return alert('Add items first'); const bill = posBillObject(); const printWindow = window.open('', '', 'width=360,height=600'); printWindow.document.write(`<html><head><title>Receipt</title><style>body{font:13px Arial;padding:14px}h2{text-align:center;margin:0 0 10px}p{margin:4px 0}.row{display:flex;justify-content:space-between;margin:5px 0}hr{border:0;border-top:1px dashed #555}</style></head><body><h2>RECEIPT</h2><p>Bill: ${bill.id}</p><p>Customer: ${bill.customer}</p><p>Phone: ${bill.phone || 'N/A'}</p><hr>${bill.items.map(item => `<div class="row"><span>${item.name} × ${item.quantity}</span><b>₹${posMoney(item.price * item.quantity)}</b></div>`).join('')}<hr><div class="row"><span>Subtotal</span><b>₹${bill.subtotal}</b></div><div class="row"><span>Discount</span><b>₹${posMoney(bill.discount)}</b></div><div class="row"><span>Total Bill</span><b>₹${posMoney(Number(bill.subtotal)-Number(bill.discount||0))}</b></div><div class="row"><span>Advance Received</span><b>₹${posMoney(bill.advance)}</b></div><div class="row"><span>Remaining Balance</span><b>₹${bill.total}</b></div></body></html>`); printWindow.document.close(); printWindow.focus(); setTimeout(() => printWindow.print(), 300); }
 

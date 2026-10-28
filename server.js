@@ -388,6 +388,52 @@ app.get('/api/bills', async (req, res) => {
     } catch (err) { res.status(500).send(err); }
 });
 
+// All-time sales contain sensitive business totals, so only admins may access them.
+app.get('/api/reports/all-time-sales', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+        const bills = await Bill.find({ isDeleted: { $ne: true } })
+            .select('date createdAt deliveryDate saleTotal subtotal discount advance balance total paymentStatus paymentBreakdown paymentMode payMethod orderSource orderStatus Status status')
+            .lean();
+        const reportBills = bills.filter(bill => ![bill.orderStatus, bill.Status, bill.status]
+            .some(status => String(status || '').trim().toLowerCase() === 'cancelled'));
+        const totals = { bills: reportBills.length, billed: 0, received: 0, cash: 0, upi: 0, card: 0, other: 0, unpaid: 0, firstDate: null };
+        reportBills.forEach(bill => {
+            const date = new Date(bill.date || bill.createdAt || bill.deliveryDate);
+            if (!Number.isNaN(date.getTime()) && (!totals.firstDate || date < totals.firstDate)) totals.firstDate = date;
+            const sale = Number(bill.saleTotal ?? Math.max(0, Number(bill.subtotal || 0) - Number(bill.discount || 0))) || 0;
+            const advance = Math.max(0, Number(bill.advance) || 0);
+            const storedBalance = Number(bill.balance ?? bill.total);
+            const balance = Number.isFinite(storedBalance) ? Math.max(0, storedBalance) : Math.max(0, sale - advance);
+            const paid = String(bill.paymentStatus || (balance <= 0.005 ? 'paid' : 'unpaid')).toLowerCase() === 'paid';
+            const received = paid ? sale : Math.max(advance, sale - balance);
+            totals.billed += sale;
+            totals.received += received;
+            if (!paid) totals.unpaid += balance;
+            const payments = Array.isArray(bill.paymentBreakdown) ? bill.paymentBreakdown : [];
+            if (payments.length) {
+                payments.forEach(payment => {
+                    const amount = Math.max(0, Number(payment.amount) || 0);
+                    const mode = String(payment.mode || '').toLowerCase();
+                    if (mode === 'cash') totals.cash += amount;
+                    else if (mode === 'upi' || mode === 'online') totals.upi += amount;
+                    else if (mode === 'debitcard' || mode === 'card') totals.card += amount;
+                    else totals.other += amount;
+                });
+            } else if (received > 0) {
+                const mode = String(bill.paymentMode || bill.payMethod || (bill.orderSource === 'ONLINE' ? 'upi' : '')).toLowerCase();
+                if (mode === 'cash') totals.cash += received;
+                else if (mode === 'upi' || mode === 'online') totals.upi += received;
+                else if (mode === 'debitcard' || mode === 'card') totals.card += received;
+                else totals.other += received;
+            }
+        });
+        res.json(totals);
+    } catch (error) {
+        console.error('Could not load all-time sales report:', error);
+        res.status(500).json({ error: 'Could not load all-time sales report.' });
+    }
+});
+
 app.get('/api/bills/:id', async (req, res) => {
     try {
         const billId = req.params.id;

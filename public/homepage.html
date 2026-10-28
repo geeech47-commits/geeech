@@ -22,6 +22,7 @@
 
     <!-- Tailwind CSS & Font Awesome -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
@@ -519,7 +520,15 @@
                 <button onclick="closeDayClosing()" class="rounded-lg px-3 py-1 text-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close">&times;</button>
             </div>
             <div id="dayClosingSummary" class="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-4 sm:p-5"></div>
-            <div class="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-4 sm:px-5"><p class="text-[10px] font-medium text-slate-400">Totals for today’s bills</p><button onclick="closeDayClosing()" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Close</button></div>
+            <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-4 sm:px-5"><p class="text-[10px] font-medium text-slate-400">Totals for today’s bills</p><div class="flex gap-2"><button onclick="openAllTimeSalesReport()" class="rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-700"><i class="fa-solid fa-chart-line mr-1"></i>All-time report</button><button onclick="closeDayClosing()" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Close</button></div></div>
+        </div>
+    </div>
+
+    <div id="allTimeSalesModal" class="fixed inset-0 z-[450] hidden items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="allTimeSalesTitle">
+        <div class="flex max-h-[90vh] max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6"><div><h2 id="allTimeSalesTitle" class="text-lg font-bold text-slate-900">All-Time Sales Report</h2><p id="allTimeSalesRange" class="mt-1 text-xs text-slate-500">Totals from saved bills</p></div><button onclick="closeAllTimeSalesReport()" class="rounded-lg px-3 py-1 text-2xl text-slate-400 hover:bg-slate-100" aria-label="Close">&times;</button></div>
+            <div id="allTimeSalesContent" class="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6"><p class="py-10 text-center text-sm text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading saved sales…</p></div>
+            <div class="flex shrink-0 flex-col gap-2 border-t border-slate-100 bg-white p-4 sm:flex-row sm:justify-end sm:px-6"><button onclick="downloadAllTimeSalesPdf()" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50"><i class="fa-solid fa-download mr-1.5"></i>Download PDF</button><button onclick="shareAllTimeSalesPdf()" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700"><i class="fa-brands fa-whatsapp mr-1.5"></i>Send PDF to WhatsApp</button><button onclick="closeAllTimeSalesReport()" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-500 hover:bg-slate-50">Close</button></div>
         </div>
     </div>
 
@@ -734,6 +743,92 @@
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape' && !document.getElementById('dayClosingModal').classList.contains('hidden')) closeDayClosing();
         });
+
+        let allTimeSalesData = null;
+        const allTimeMoney = value => `Rs. ${new Intl.NumberFormat('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}).format(Number(value) || 0)}`;
+        async function openAllTimeSalesReport() {
+            closeDayClosing();
+            const modal = document.getElementById('allTimeSalesModal');
+            const content = document.getElementById('allTimeSalesContent');
+            content.innerHTML = '<p class="py-10 text-center text-sm text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading saved sales…</p>';
+            modal.classList.replace('hidden', 'flex');
+            try {
+                const response = await fetch('/api/reports/all-time-sales', { credentials: 'include' });
+                if (response.status === 401 || response.status === 403) {
+                    throw new Error('Unauthorized access — access denied by the system. Admin access is required to view the all-time sales report.');
+                }
+                if (!response.ok) throw new Error(`Could not load sales data (HTTP ${response.status}).`);
+                const totals = await response.json();
+                if (typeof totals !== 'object' || totals === null || !Number.isFinite(Number(totals.bills))) throw new Error('The sales response was invalid.');
+                totals.firstDate = totals.firstDate ? new Date(totals.firstDate) : null;
+                allTimeSalesData = totals;
+                const dateText = totals.firstDate ? `${totals.firstDate.toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})} – ${new Date().toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'})}` : 'No saved sales yet';
+                document.getElementById('allTimeSalesRange').textContent = `Saved bills from ${dateText} · Cancelled bills excluded`;
+                const rows = [
+                    ['Total sales billed', 'All sales', totals.billed, 'slate'],
+                    ['Total payment received', 'Received', totals.received, 'emerald'],
+                    ['Cash received', 'Cash', totals.cash, 'green'],
+                    ['UPI received', 'UPI', totals.upi, 'blue'],
+                    ['Card received', 'Card', totals.card, 'indigo'],
+                    ['Other received', 'Other', totals.other, 'rose'],
+                    ['Outstanding balance', 'Due', totals.unpaid, 'amber']
+                ];
+                const tone = {slate:'border-slate-200 bg-slate-100 text-slate-700',emerald:'border-emerald-200 bg-emerald-100 text-emerald-800',green:'border-green-200 bg-green-50 text-green-700',blue:'border-blue-200 bg-blue-50 text-blue-700',indigo:'border-indigo-200 bg-indigo-50 text-indigo-700',rose:'border-rose-200 bg-rose-50 text-rose-700',amber:'border-amber-200 bg-amber-50 text-amber-800'};
+                const textTone = {slate:'text-slate-700',emerald:'text-emerald-800',green:'text-green-700',blue:'text-blue-700',indigo:'text-indigo-700',rose:'text-rose-700',amber:'text-amber-800'};
+                const desktop = `<div class="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm sm:block"><table class="w-full text-left text-xs"><thead class="bg-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-500"><tr><th class="px-4 py-3">Sales summary</th><th class="px-4 py-3">Type</th><th class="px-4 py-3 text-right">Amount</th></tr></thead><tbody class="divide-y divide-slate-100">${rows.map(([label,type,value,color]) => `<tr><td class="px-4 py-3 font-semibold text-slate-700">${label}</td><td class="px-4 py-3"><span class="rounded-full border px-2.5 py-1 text-[9px] font-extrabold uppercase ${tone[color]}">${type}</span></td><td class="px-4 py-3 text-right text-sm font-bold ${textTone[color]}">${allTimeMoney(value)}</td></tr>`).join('')}</tbody></table></div>`;
+                const mobile = `<div class="space-y-2 sm:hidden">${rows.map(([label,type,value,color]) => `<article class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3"><span class="min-w-0"><span class="block text-[11px] font-semibold text-slate-700">${label}</span><span class="mt-1 inline-flex rounded-full border px-2 py-0.5 text-[8px] font-extrabold uppercase ${tone[color]}">${type}</span></span><span class="shrink-0 text-sm font-extrabold ${textTone[color]}">${allTimeMoney(value)}</span></article>`).join('')}</div>`;
+                content.innerHTML = `<div class="mb-3 grid grid-cols-2 gap-3"><div class="rounded-2xl border border-violet-100 bg-white p-4"><p class="text-[9px] font-bold uppercase tracking-wider text-slate-500">Bills included</p><p class="mt-1 text-xl font-black text-violet-700">${totals.bills.toLocaleString('en-IN')}</p></div><div class="rounded-2xl border border-emerald-100 bg-white p-4"><p class="text-[9px] font-bold uppercase tracking-wider text-slate-500">Total received</p><p class="mt-1 text-base font-black text-emerald-700">${allTimeMoney(totals.received)}</p></div></div>${desktop}${mobile}`;
+            } catch (error) {
+                allTimeSalesData = null;
+                content.innerHTML = `<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">${escapeDashboardText(error.message || 'Could not load all-time sales.')}</div>`;
+            }
+        }
+        function closeAllTimeSalesReport() { document.getElementById('allTimeSalesModal').classList.replace('flex', 'hidden'); }
+        function buildAllTimeSalesPdf() {
+            if (!allTimeSalesData) throw new Error('Load the all-time sales report first.');
+            if (!window.jspdf?.jsPDF) throw new Error('PDF generation is not available. Please refresh and try again.');
+            const {jsPDF} = window.jspdf;
+            const doc = new jsPDF({unit:'mm', format:'a4'});
+            const data = allTimeSalesData;
+            const generated = new Date().toLocaleString('en-IN', {day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'});
+            doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.text("Gee-Ech | All-Time Sales Report", 14, 20);
+            doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text(`Generated: ${generated}`, 14, 28); doc.text(`Bills included: ${data.bills}`, 14, 34);
+            const pdfRows = [['Total sales billed', data.billed], ['Total payment received', data.received], ['Cash received', data.cash], ['UPI received', data.upi], ['Card received', data.card], ['Other received', data.other], ['Outstanding balance', data.unpaid]];
+            let y = 48;
+            doc.setDrawColor(220); doc.line(14,y-6,196,y-6);
+            pdfRows.forEach(([label,value], index) => {
+                if (y > 275) { doc.addPage(); y = 20; }
+                doc.setFont('helvetica', index < 2 ? 'bold' : 'normal'); doc.setFontSize(index < 2 ? 12 : 11);
+                doc.text(label, 16, y); doc.text(allTimeMoney(value), 194, y, {align:'right'});
+                doc.setDrawColor(232); doc.line(14,y+4,196,y+4); y += 13;
+            });
+            doc.setFont('helvetica','italic'); doc.setFontSize(9); doc.text('Cancelled bills excluded. Totals are calculated from saved bills.',14,285);
+            const fileName = `Gee-Ech_All-Time_Sales_${new Date().toISOString().slice(0,10)}.pdf`;
+            return {doc, fileName};
+        }
+        function downloadAllTimeSalesPdf() {
+            try { const {doc,fileName} = buildAllTimeSalesPdf(); doc.save(fileName); }
+            catch (error) { alert(error.message || 'Could not create the sales report PDF.'); }
+        }
+        async function shareAllTimeSalesPdf() {
+            try {
+                const {doc,fileName} = buildAllTimeSalesPdf();
+                const blob = doc.output('blob');
+                const file = new File([blob], fileName, {type:'application/pdf'});
+                if (navigator.share && navigator.canShare?.({files:[file]})) {
+                    await navigator.share({files:[file], title:'All-Time Sales Report', text:'Gee-Ech all-time sales report'});
+                    return;
+                }
+                doc.save(fileName);
+                const message = encodeURIComponent('Gee-Ech all-time sales report PDF is downloaded. Please attach the PDF to this WhatsApp chat.');
+                const whatsappWindow = window.open(`https://wa.me/?text=${message}`, '_blank', 'noopener');
+                if (!whatsappWindow) alert('The PDF was downloaded. Attach it manually in WhatsApp to send it.');
+            } catch (error) {
+                if (error.name !== 'AbortError') alert(error.message || 'Could not share the sales report.');
+            }
+        }
+        document.getElementById('allTimeSalesModal').addEventListener('click', event => { if (event.target.id === 'allTimeSalesModal') closeAllTimeSalesReport(); });
+        document.addEventListener('keydown', event => { if (event.key === 'Escape' && !document.getElementById('allTimeSalesModal').classList.contains('hidden')) closeAllTimeSalesReport(); });
 
         let calculatedSales = { thisMonth: 0, lastMonth: 0, overall: 0 };
 

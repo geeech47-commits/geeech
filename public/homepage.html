@@ -326,8 +326,8 @@
                     <button id="btn-ONLINE" onclick="setFilter('ONLINE')" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white border border-slate-200 text-slate-600 transition-all shadow-sm">Online</button>
                     <button id="btn-OFFLINE" onclick="setFilter('OFFLINE')" class="filter-btn px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white border border-slate-200 text-slate-600 transition-all shadow-sm">Offline</button>
                     <span class="mx-1 hidden h-8 border-l border-slate-200 sm:block"></span>
-                    <button onclick="openBookedOrders('today')" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold uppercase text-emerald-700 transition-all hover:bg-emerald-100">Today's booked orders</button>
-                    <button onclick="openBookedOrders('future')" class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-bold uppercase text-blue-700 transition-all hover:bg-blue-100">Future bookings</button>
+                    <button onclick="openBookedOrders('today')" class="hidden rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs font-bold uppercase text-emerald-700 transition-all hover:bg-emerald-100 sm:inline-flex">Today's booked orders</button>
+                    <button onclick="openBookedOrders('future')" class="hidden rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-bold uppercase text-blue-700 transition-all hover:bg-blue-100 sm:inline-flex">Future bookings</button>
                 </div>
 
                 <div id="onlineSubFilters" class="hidden flex gap-2">
@@ -336,9 +336,15 @@
                 </div>
             </div>
 
-            <div class="flex justify-end">
+            <div class="grid grid-cols-2 gap-2 sm:hidden" aria-label="Dashboard actions">
+                <button onclick="openDayClosing()" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-white px-2.5 py-2.5 text-center text-[10px] font-bold leading-tight text-violet-800 shadow-sm"><i class="fa-solid fa-chart-column shrink-0"></i><span>Daily Sales Report</span></button>
+                <button onclick="openTablesModal()" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-2.5 py-2.5 text-center text-[10px] font-bold leading-tight text-emerald-800 shadow-sm"><i class="fa-solid fa-table-cells-large shrink-0"></i><span>Table Bookings</span></button>
+                <button onclick="openBookedOrders('today')" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-2.5 py-2.5 text-center text-[10px] font-bold leading-tight text-blue-800 shadow-sm"><i class="fa-solid fa-calendar-day shrink-0"></i><span>Today's Booked Orders</span></button>
+                <button onclick="openBookedOrders('future')" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-2.5 py-2.5 text-center text-[10px] font-bold leading-tight text-indigo-800 shadow-sm"><i class="fa-solid fa-calendar-days shrink-0"></i><span>Future Bookings</span></button>
+            </div>
+            <div class="hidden justify-end sm:flex">
                 <div class="flex flex-wrap justify-end gap-3">
-                <button onclick="openTablesModal()" class="inline-flex items-center gap-3 rounded-xl border border-emerald-200 bg-white px-5 py-3.5 text-sm font-extrabold text-emerald-800 shadow-md shadow-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-50"><span class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700"><i class="fa-solid fa-table-cells-large"></i></span> Tables <i class="fa-solid fa-arrow-right text-xs"></i></button>
+                <button onclick="openTablesModal()" class="inline-flex items-center gap-3 rounded-xl border border-emerald-200 bg-white px-5 py-3.5 text-sm font-extrabold text-emerald-800 shadow-md shadow-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-50"><span class="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700"><i class="fa-solid fa-table-cells-large"></i></span> Table Bookings <i class="fa-solid fa-arrow-right text-xs"></i></button>
                 <button onclick="openDayClosing()" class="inline-flex items-center gap-3 rounded-xl border border-violet-200 bg-white px-6 py-3.5 text-sm font-extrabold text-violet-800 shadow-md shadow-violet-100 transition hover:-translate-y-0.5 hover:border-violet-400 hover:bg-violet-50 hover:shadow-lg">
                     <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700"><i class="fa-solid fa-cash-register"></i></span> Daily Sales Report <i class="fa-solid fa-arrow-right text-xs text-violet-500"></i>
                 </button>
